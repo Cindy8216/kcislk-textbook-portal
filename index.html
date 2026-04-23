@@ -19,6 +19,15 @@
         .tab-btn { border-bottom: 3px solid transparent; padding-bottom: 8px; transition: all 0.3s; color: #94a3b8; font-weight: 800; font-size: 13px; }
         .tab-active { border-bottom: 3px solid var(--kcis-blue); color: var(--kcis-blue); }
         
+        /* 強制旋轉動畫定義 */
+        @keyframes spin-fast {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .force-spin {
+            animation: spin-fast 1s linear infinite;
+        }
+
         .seq-card { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .seq-card.english { border-left-color: #FB923C; }
         .seq-card.math { border-left-color: #A855F7; }
@@ -68,7 +77,7 @@
             <div class="col-span-full py-32 text-center">
                 <div class="relative inline-block mb-6">
                     <div class="h-16 w-16 border-4 border-slate-200 rounded-full"></div>
-                    <div class="absolute top-0 h-16 w-16 border-4 border-t-kcis-blue rounded-full animate-spin"></div>
+                    <div class="absolute top-0 h-16 w-16 border-4 border-t-kcis-blue rounded-full force-spin"></div>
                 </div>
                 <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
                 <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
