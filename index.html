@@ -183,15 +183,26 @@
             document.getElementById('textbookView').innerHTML = filtered.map(b => {
                 const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
                 const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
+                
                 const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
                 const cleanIsbn = rawIsbn.replace(/\D/g, ''); 
+                
+                // --- 圖片邏輯優化 ---
+                let finalCoverUrl = 'https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=In-house+Resource';
+                if (b.coverurl && b.coverurl.startsWith('http')) {
+                    finalCoverUrl = b.coverurl;
+                } else if (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') {
+                    finalCoverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-M.jpg`;
+                }
+
                 const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') 
                     ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
                     : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
+                
                 return `
                 <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b">
-                        <img src="${b.coverurl || (b.isbn ? `https://covers.openlibrary.org/b/isbn/${String(b.isbn).replace(/-/g,'')}-M.jpg` : '')}" onerror="this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Coming+Soon'" class="h-full object-contain drop-shadow-xl rounded">
+                        <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-xl rounded">
                         <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
                         <div class="absolute top-4 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-400">G${b.grade}</div>
                         ${b.level ? `<div class="absolute bottom-4 right-4 bg-kcis-blue text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">${b.level}</div>` : ''}
@@ -221,11 +232,8 @@
                         const subj = String(c.subject).toLowerCase();
                         const type = String(c.type || '').toUpperCase();
                         let colorClass = subj.includes('eng') ? 'english' : subj.includes('math') ? 'math' : subj.includes('sci') ? 'science' : subj.includes('soc') ? 'social' : subj.includes('chi') ? 'chinese' : '';
-                        
-                        // 修正：偵測 AP 或包含 HONOR 的字眼
                         const isAP = type.includes('AP');
                         const isHN = type.includes('HONOR') || type === 'HN';
-                        
                         return `<div class="seq-card ${colorClass}">
                             <div class="flex justify-between items-start mb-1">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${c.subject}</span>
