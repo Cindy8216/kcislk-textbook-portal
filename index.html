@@ -19,7 +19,6 @@
         .tab-btn { border-bottom: 3px solid transparent; padding-bottom: 8px; transition: all 0.3s; color: #94a3b8; font-weight: 800; font-size: 13px; }
         .tab-active { border-bottom: 3px solid var(--kcis-blue); color: var(--kcis-blue); }
 
-        /* --- 課程地圖卡片樣式 --- */
         .seq-card { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .seq-card.english { border-left-color: #FB923C; }
         .seq-card.math { border-left-color: #A855F7; }
@@ -29,11 +28,8 @@
         .ap-tag { background: #EF4444; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
         .hn-tag { background: #F59E0B; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
 
-        /* 篩選按鈕樣式 */
         .filter-chip { padding: 6px 16px; border-radius: 99px; font-size: 12px; font-weight: 800; border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer; color: #64748b; background: white; white-space: nowrap; }
         .filter-chip.active { background: var(--kcis-blue); color: white; border-color: var(--kcis-blue); }
-        .filter-chip-ap { border-color: #EF4444; color: #EF4444; }
-        .filter-chip-ap.active { background: #EF4444; color: white; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -58,10 +54,9 @@
                 <input type="text" id="searchBox" placeholder="Global Search ISBN..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold">
             </div>
 
-            <div id="filterSequence" class="hidden py-2 overflow-x-auto">
+            <div id="filterSequence" class="hidden py-2 overflow-x-auto text-center">
                 <div class="flex gap-2 justify-center pb-2" id="seqSubjectBtns">
                     <div class="filter-chip active" onclick="filterSeq('All', this)">All Subjects</div>
-                    <div class="filter-chip filter-chip-ap" onclick="filterSeq('AP_ONLY', this)">AP ONLY</div>
                     <div class="filter-chip" onclick="filterSeq('English', this)">English</div>
                     <div class="filter-chip" onclick="filterSeq('Math', this)">Math</div>
                     <div class="filter-chip" onclick="filterSeq('Science', this)">Science</div>
@@ -145,21 +140,16 @@
 
             subjectEl.onchange = () => {
                 const rawLevels = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value) && (subjectEl.value === "All" || b.subject === subjectEl.value)).map(b => b.level).filter(Boolean))];
-                
                 const sortedLevels = rawLevels.sort((a, b) => {
                     const getRank = v => {
                         const s = String(v).toUpperCase().trim();
                         if (s === 'AP') return 1;
                         if (s === 'HN' || s === 'HONORS') return 2;
-                        if (s.includes('PRE-HONOR')) return 3;
                         if (s === 'RG' || s === 'REGULAR') return 4;
-                        if (s.startsWith('M')) return 50 + (parseInt(s.slice(1)) || 0);
-                        if (s.startsWith('H')) return 60 + (parseInt(s.slice(1)) || 0);
                         return 99;
                     };
                     return getRank(a) - getRank(b) || String(a).localeCompare(String(b));
                 });
-
                 levelEl.innerHTML = `<option value="All">All Levels</option>` + sortedLevels.map(l => `<option value="${l}">${l}</option>`).join('');
                 renderBooks();
             };
@@ -175,26 +165,24 @@
                 if (searchRaw.length > 0) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
                 return String(b.grade) === String(grade) && (document.getElementById('subjectFilter').value === "All" || b.subject === document.getElementById('subjectFilter').value) && (document.getElementById('levelFilter').value === "All" || b.level === document.getElementById('levelFilter').value);
             });
+            
             document.getElementById('textbookView').innerHTML = filtered.map(b => {
                 const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
                 const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
                 
-                // --- ISBN 連結強化邏輯 ---
+                // --- ISBN 連結邏輯 ---
                 const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
                 const cleanIsbn = rawIsbn.replace(/\D/g, ''); 
                 let isbnTag = '';
                 
                 if (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') {
-                    isbnTag = `
-                        <a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" 
-                           class="inline-block bg-blue-50 text-kcis-blue px-2 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white hover:border-[#00A3E0] transition-all cursor-pointer shadow-sm hover:shadow-md"
-                            ISBN: ${rawIsbn} 🔗
-                        </a>`;
+                    isbnTag = `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`;
                 } else {
                     isbnTag = `<div class="inline-block bg-slate-100 text-slate-400 px-2 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
                 }
 
-                return `<div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
+                return `
+                <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b">
                         <img src="${b.coverurl || (b.isbn ? `https://covers.openlibrary.org/b/isbn/${String(b.isbn).replace(/-/g,'')}-M.jpg` : '')}" onerror="this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Coming+Soon'" class="h-full object-contain drop-shadow-xl rounded">
                         <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
@@ -221,10 +209,7 @@
             container.innerHTML = grades.map(g => {
                 const gradeCourses = allCourses.filter(c => {
                     const matchGrade = String(c.grade) === String(g);
-                    let matchSubj = false;
-                    if (currentSeqFilter === 'All') matchSubj = true;
-                    else if (currentSeqFilter === 'AP_ONLY') matchSubj = String(c.type).toUpperCase().includes('AP');
-                    else matchSubj = String(c.subject).toLowerCase().includes(currentSeqFilter.toLowerCase().substring(0,3));
+                    let matchSubj = (currentSeqFilter === 'All') || String(c.subject).toLowerCase().includes(currentSeqFilter.toLowerCase().substring(0,3));
                     return matchGrade && matchSubj;
                 });
                 return `<div class="space-y-4">
@@ -233,13 +218,11 @@
                         ${gradeCourses.map(c => {
                             const subj = String(c.subject).toLowerCase();
                             const type = String(c.type).toUpperCase();
-                            const isAP = type.includes('AP');
-                            const isHN = type.includes('HN') || type.includes('HONOR');
                             let colorClass = subj.includes('eng') ? 'english' : subj.includes('math') ? 'math' : subj.includes('sci') ? 'science' : subj.includes('soc') ? 'social' : subj.includes('chi') ? 'chinese' : '';
                             return `<div class="seq-card ${colorClass}">
                                 <div class="flex justify-between items-start mb-1">
                                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${c.subject}</span>
-                                    <div class="flex gap-1">${isAP ? '<span class="ap-tag">AP</span>' : ''}${isHN ? '<span class="hn-tag">HN</span>' : ''}</div>
+                                    <div class="flex gap-1">${type.includes('AP') ? '<span class="ap-tag">AP</span>' : ''}${type.includes('HN') ? '<span class="hn-tag">HN</span>' : ''}</div>
                                 </div>
                                 <p class="text-[13px] font-bold text-slate-800 leading-tight">${c.name}</p>
                             </div>`;
