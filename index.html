@@ -65,9 +65,13 @@
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
         <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            <div class="col-span-full py-24 text-center">
-                <div class="inline-block animate-spin rounded-full h-14 w-14 border-4 border-slate-200 border-t-kcis-blue mb-5"></div>
-                <p class="text-slate-400 font-black tracking-widest text-sm animate-pulse">SYNCING LIBRARY DATA...</p>
+            <div class="col-span-full py-32 text-center">
+                <div class="relative inline-block mb-6">
+                    <div class="h-16 w-16 border-4 border-slate-200 rounded-full"></div>
+                    <div class="absolute top-0 h-16 w-16 border-4 border-t-kcis-blue rounded-full animate-spin"></div>
+                </div>
+                <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
+                <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
             </div>
         </div>
         <div id="sequenceView" class="hidden">
@@ -87,13 +91,11 @@
                 ]);
                 allBooks = bookRes.map(item => fixKeys(item));
                 allCourses = courseRes;
-                
-                // 解鎖選單並載入資料
                 setupFilters();
                 renderSequence();
             } catch (e) { 
                 console.error("Sync Error:", e);
-                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-400 font-bold">Network error. Please refresh.</div>`;
+                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-500 font-black px-4"><div class="bg-red-50 p-6 rounded-2xl border-2 border-red-100 max-w-sm mx-auto">⚠️ Data link timeout. Please refresh the page.</div></div>`;
             }
         }
 
@@ -138,7 +140,6 @@
                   subjectEl = document.getElementById('subjectFilter'), 
                   levelEl = document.getElementById('levelFilter');
             
-            // 恢復選單可用狀態
             [gradeEl, subjectEl, levelEl].forEach(el => {
                 el.classList.remove('opacity-50', 'cursor-not-allowed');
             });
