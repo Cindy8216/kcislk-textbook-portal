@@ -19,14 +19,8 @@
         .tab-btn { border-bottom: 3px solid transparent; padding-bottom: 8px; transition: all 0.3s; color: #94a3b8; font-weight: 800; font-size: 13px; }
         .tab-active { border-bottom: 3px solid var(--kcis-blue); color: var(--kcis-blue); }
         
-        /* 強制旋轉動畫定義 */
-        @keyframes spin-fast {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .force-spin {
-            animation: spin-fast 1s linear infinite;
-        }
+        @keyframes spin-fast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .force-spin { animation: spin-fast 1s linear infinite; }
 
         .seq-card { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .seq-card.english { border-left-color: #FB923C; }
@@ -104,7 +98,7 @@
                 renderSequence();
             } catch (e) { 
                 console.error("Sync Error:", e);
-                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-500 font-black px-4"><div class="bg-red-50 p-6 rounded-2xl border-2 border-red-100 max-w-sm mx-auto">⚠️ Data link timeout. Please refresh the page.</div></div>`;
+                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-500 font-black px-4"><div class="bg-red-50 p-6 rounded-2xl border-2 border-red-100 max-w-sm mx-auto">⚠️ Data link timeout. Please refresh.</div></div>`;
             }
         }
 
@@ -148,27 +142,21 @@
             const gradeEl = document.getElementById('gradeFilter'), 
                   subjectEl = document.getElementById('subjectFilter'), 
                   levelEl = document.getElementById('levelFilter');
-            
-            [gradeEl, subjectEl, levelEl].forEach(el => {
-                el.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
-
+            [gradeEl, subjectEl, levelEl].forEach(el => el.classList.remove('opacity-50', 'cursor-not-allowed'));
             const grades = [...new Set(allBooks.map(b => b.grade).filter(Boolean))].sort((a,b) => parseInt(a)-parseInt(b));
             gradeEl.innerHTML = grades.map(g => `<option value="${g}">Grade ${g}</option>`).join('');
-            
             gradeEl.onchange = () => {
                 const subjects = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value)).map(b => b.subject).filter(Boolean))].sort();
                 subjectEl.innerHTML = `<option value="All">All Subjects</option>` + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
                 subjectEl.onchange();
             };
-
             subjectEl.onchange = () => {
                 const rawLevels = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value) && (subjectEl.value === "All" || b.subject === subjectEl.value)).map(b => b.level).filter(Boolean))];
                 const sortedLevels = rawLevels.sort((a, b) => {
                     const getRank = v => {
                         const s = String(v).toUpperCase().trim();
                         if (s === 'AP') return 1;
-                        if (s === 'HN' || s === 'HONORS' || s === 'PRE-HONORS') return 2;
+                        if (s.includes('HONOR') || s === 'HN') return 2;
                         return 4;
                     };
                     return getRank(a) - getRank(b) || String(a).localeCompare(String(b));
@@ -188,22 +176,18 @@
                 if (searchRaw.length > 0) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
                 return String(b.grade) === String(grade) && (document.getElementById('subjectFilter').value === "All" || b.subject === document.getElementById('subjectFilter').value) && (document.getElementById('levelFilter').value === "All" || b.level === document.getElementById('levelFilter').value);
             });
-            
             if(filtered.length === 0) {
                 document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching textbooks found.</div>`;
                 return;
             }
-
             document.getElementById('textbookView').innerHTML = filtered.map(b => {
                 const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
                 const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
-                
                 const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
                 const cleanIsbn = rawIsbn.replace(/\D/g, ''); 
                 const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') 
                     ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
                     : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
-
                 return `
                 <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b">
@@ -235,11 +219,20 @@
                     <h3 class="text-xl font-black text-slate-800 italic border-l-4 border-kcis-blue pl-3 mb-6">GRADE ${g}</h3>
                     <div class="space-y-3">${gradeCourses.map(c => {
                         const subj = String(c.subject).toLowerCase();
+                        const type = String(c.type || '').toUpperCase();
                         let colorClass = subj.includes('eng') ? 'english' : subj.includes('math') ? 'math' : subj.includes('sci') ? 'science' : subj.includes('soc') ? 'social' : subj.includes('chi') ? 'chinese' : '';
+                        
+                        // 修正：偵測 AP 或包含 HONOR 的字眼
+                        const isAP = type.includes('AP');
+                        const isHN = type.includes('HONOR') || type === 'HN';
+                        
                         return `<div class="seq-card ${colorClass}">
                             <div class="flex justify-between items-start mb-1">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${c.subject}</span>
-                                <div class="flex gap-1">${String(c.type).toUpperCase().includes('AP') ? '<span class="ap-tag">AP</span>' : ''}${String(c.type).toUpperCase().includes('HN') ? '<span class="hn-tag">HN</span>' : ''}</div>
+                                <div class="flex gap-1">
+                                    ${isAP ? '<span class="ap-tag">AP</span>' : ''}
+                                    ${isHN ? '<span class="hn-tag">HN</span>' : ''}
+                                </div>
                             </div>
                             <p class="text-[13px] font-bold text-slate-800 leading-tight">${c.name}</p>
                         </div>`;
