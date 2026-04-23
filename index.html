@@ -266,6 +266,13 @@
                     ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
                     : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
                 
+                // 優化後的價格邏輯：空白顯示預設值，有填（含橫線）則照填寫顯示
+                const rawPrint = String(b.price || '').trim().toUpperCase();
+                const rawDigital = String(b.ebook || '').trim().toUpperCase();
+
+                const printPrice = (rawPrint === '' || rawPrint === 'TBD') ? '待公告' : (rawPrint === '-' ? '-' : `NT$ ${b.price}`);
+                const digitalPrice = (rawDigital === '' || rawDigital === '-') ? '-' : (rawDigital === 'TBD' ? '待公告' : `NT$ ${b.ebook}`);
+
                 return `
                 <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b text-center">
@@ -280,8 +287,8 @@
                         ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight"><p class="text-[14px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-4"></div>'}
                         <div class="mt-4 mb-6">${isbnTag}</div>
                         <div class="mt-auto pt-4 border-t space-y-2 font-bold text-sm">
-                            <div class="flex justify-between"><span>Print</span><span>NT$ ${b.price || 'TBD'}</span></div>
-                            <div class="flex justify-between text-green-600"><span>Digital</span><span>${b.ebook ? 'NT$ '+b.ebook : '-'}</span></div>
+                            <div class="flex justify-between"><span>Print</span><span>${printPrice}</span></div>
+                            <div class="flex justify-between text-green-600"><span>Digital</span><span>${digitalPrice}</span></div>
                         </div>
                     </div>
                 </div>`;
