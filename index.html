@@ -43,20 +43,20 @@
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
         <div class="max-w-7xl mx-auto px-4 py-3">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
-                <div class="flex items-center gap-3">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <img src="school-logo.jpg" alt="KCIS Logo" class="h-8 w-auto">
-                    <div class="h-5 w-[1px] bg-slate-200 hidden md:block"></div>
+                    <div class="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
-                            <div class="bg-kcis-blue text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">SY26-27</div>
-                            <h1 class="text-base font-black text-slate-800 tracking-tight leading-tight">中學部國際處課本查詢入口網站</h1>
+                            <div class="bg-kcis-blue text-white px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest shrink-0">SY26-27</div>
+                            <h1 class="text-[15px] sm:text-base font-black text-slate-800 tracking-tight leading-tight">中學部國際處課本查詢入口網站</h1>
                         </div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">IPD Textbook & Course Sequence Portal</p>
+                        <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">IPD Textbook & Course Sequence Portal</p>
                     </div>
                 </div>
-                <nav class="flex gap-8">
-                    <button id="btnTextbook" onclick="switchMode('textbook')" class="tab-btn tab-active uppercase text-xs">Textbook List</button>
-                    <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-xs">Course Sequence</button>
+                <nav class="flex gap-6 sm:gap-8">
+                    <button id="btnTextbook" onclick="switchMode('textbook')" class="tab-btn tab-active uppercase text-[11px] sm:text-xs">Textbook List</button>
+                    <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-[11px] sm:text-xs">Course Sequence</button>
                 </nav>
             </div>
             <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
@@ -109,19 +109,19 @@
 
                 <div>
                     <h3 class="font-bold text-kcis-blue mb-2">退換說明 Returns</h3>
-                    <p class="text-sm text-slate-600 leading-relaxed">預購書籍恕不接受退書。其他課本退換請於開學後兩週內至國際處IPD辦理，逾期不予受理。</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">預購書籍恕不接受退書。其他課本退換請於開學後兩週內至國際處 IPD 辦理，逾期不予受理。</p>
                     <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Pre-ordered textbooks are non-returnable. Other returns must be processed at the IPD Office within the first 2 weeks.</p>
                 </div>
 
                 <div>
                     <h3 class="font-bold text-kcis-blue mb-2">課程使用時程 Usage Period</h3>
-                    <p class="text-sm text-slate-600 leading-relaxed">除了英文科讀本會分上下學期使用外，其餘課本皆使用一學年！。</p>
-                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Most textbooks are for the full year unless explicitly labeled as "Semester 1" or "Semester 2".</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">除了英文科讀本會分上下學期使用外，其餘課本皆使用一學年！</p>
+                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Textbooks are for the full year, except for English Readers which are issued by semester.</p>
                 </div>
 
                 <div>
                     <h3 class="font-bold text-kcis-blue mb-2">收費參考 Pricing</h3>
-                    <p class="text-sm text-slate-600 leading-relaxed">目前網頁顯示的是本學年 (SY25-26) 的金額，僅供預算參考；新學年 (SY26-27)正式金額將在 7 月更新。</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">目前網頁顯示的是本學年 (SY25-26) 的金額，僅供預算參考；新學年 (SY26-27) 正式金額將在 7 月更新。</p>
                     <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Prices shown are SY25-26 rates for reference only; official SY26-27 fees will be updated in July.</p>
                 </div>
 
@@ -132,7 +132,7 @@
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <h3 class="font-bold text-red-500 mb-1">⚠️ 重要聲明 Notice</h3>
+                    <h3 class="font-bold text-red-500 mb-1">貼心提醒 Notice</h3>
                     <p class="text-sm text-slate-700 font-bold leading-relaxed mb-1 italic underline">本校保留根據教學需求調整選書之權利。</p>
                     <p class="text-[11px] text-slate-400 italic font-medium">The school reserves the right to adjust textbook selections based on instructional requirements.</p>
                 </div>
