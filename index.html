@@ -37,6 +37,10 @@
         .filter-chip.active { background: var(--kcis-blue); color: white; border-color: var(--kcis-blue); }
         .filter-chip-ap { border-color: #EF4444; color: #EF4444; }
         .filter-chip-ap.active { background: #EF4444; color: white; border-color: #EF4444; }
+
+        /* 隱藏手機捲軸但維持滑動功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
@@ -59,14 +63,16 @@
                     <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-[11px] sm:text-xs">Course Sequence</button>
                 </nav>
             </div>
+            
             <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
                 <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
                 <select id="subjectFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
                 <select id="levelFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
                 <input type="text" id="searchBox" placeholder="Global Search ISBN..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold">
             </div>
-            <div id="filterSequence" class="hidden py-2 overflow-x-auto">
-                <div class="flex gap-2 justify-center pb-2" id="seqSubjectBtns">
+
+            <div id="filterSequence" class="hidden py-2">
+                <div class="flex gap-2 px-2 overflow-x-auto no-scrollbar justify-start lg:justify-center pb-2" id="seqSubjectBtns" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
                     <div class="filter-chip active" onclick="filterSeq('All', this)">All Subjects</div>
                     <div class="filter-chip filter-chip-ap" onclick="filterSeq('AP_ONLY', this)">AP Only</div>
                     <div class="filter-chip" onclick="filterSeq('English', this)">English</div>
@@ -120,7 +126,7 @@
                 </div>
 
                 <div>
-                    <h3 class="font-bold text-kcis-blue mb-2">收費參考 Pricing</h3>
+                    <h3 class="font-bold text-kcis-blue mb-2">收費參考 Pricing Info</h3>
                     <p class="text-sm text-slate-600 leading-relaxed">目前網頁顯示的是本學年 (SY25-26) 的金額，僅供預算參考；新學年 (SY26-27) 正式金額將在 7 月更新。</p>
                     <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Prices shown are SY25-26 rates for reference only; official SY26-27 fees will be updated in July.</p>
                 </div>
@@ -303,9 +309,16 @@
 
         function renderSequence() {
             const container = document.getElementById('sequenceCols');
-            const grades = [7,8,9, 10, 11, 12];
+            // 開放 G7-G12
+            const grades = [7, 8, 9, 10, 11, 12];
+            
+            // 科目排序權重
+            const subjectOrder = { 'English': 1, 'Math': 2, 'Science': 3, 'Social Studies': 4, 'Chinese': 5, 'Electives': 6 };
+            // 等級排序權重
+            const levelOrder = { 'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
+
             container.innerHTML = grades.map(g => {
-                const gradeCourses = allCourses.filter(c => {
+                let gradeCourses = allCourses.filter(c => {
                     const matchGrade = String(c.grade) === String(g);
                     let matchSubj = false;
                     if (currentSeqFilter === 'All') matchSubj = true;
@@ -314,6 +327,17 @@
                     else matchSubj = String(c.subject || '').toLowerCase().includes(currentSeqFilter.toLowerCase().substring(0,3));
                     return matchGrade && matchSubj;
                 });
+
+                // 排序邏輯：科目 -> 等級 -> 名稱
+                gradeCourses.sort((a, b) => {
+                    const sA = subjectOrder[a.subject] || 99, sB = subjectOrder[b.subject] || 99;
+                    if (sA !== sB) return sA - sB;
+                    const typeA = String(a.type || '').toUpperCase().trim(), typeB = String(b.type || '').toUpperCase().trim();
+                    const lA = levelOrder[typeA] || 5, lB = levelOrder[typeB] || 5;
+                    if (lA !== lB) return lA - lB;
+                    return String(a.name).localeCompare(String(b.name));
+                });
+
                 return `<div class="space-y-4">
                     <h3 class="text-xl font-black text-slate-800 italic border-l-4 border-kcis-blue pl-3 mb-6">GRADE ${g}</h3>
                     <div class="space-y-3">${gradeCourses.map(c => {
