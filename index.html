@@ -315,7 +315,7 @@
             // 科目排序權重
             const subjectOrder = { 'English': 1, 'Math': 2, 'Science': 3, 'Social Studies': 4, 'Chinese': 5, 'Electives': 6 };
             // 等級排序權重
-            const levelOrder = { 'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
+            const levelOrder = { '': 1,'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
 
             container.innerHTML = grades.map(g => {
                 let gradeCourses = allCourses.filter(c => {
