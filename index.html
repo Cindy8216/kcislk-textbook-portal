@@ -40,21 +40,21 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* --- 修正後的自定義旋轉動畫：保證流暢感 --- */
-        @keyframes kcis-spin {
+        /* --- 徹底修正：CSS 獨立旋轉定義 --- */
+        @keyframes master-spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        .loading-animation {
-            animation: kcis-spin 0.8s linear infinite !important;
-            /* 強制使用硬體加速，避免被 JS 阻塞 */
+        .active-spinner {
+            display: inline-block;
+            animation: master-spin 0.8s linear infinite !important;
             will-change: transform;
-            transform: translateZ(0);
+            transform: translateZ(0); /* 強制開啟 3D 加速 */
         }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    <!-- Header 與 篩選列：這個區域會立即呈現 -->
+    <!-- Header 區塊：立即呈現 -->
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
         <div class="max-w-7xl mx-auto px-4 py-3">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
@@ -98,13 +98,12 @@
     </div>
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
-        <!-- 載入動畫區域：保證這裡會持續旋轉 -->
-        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 min-h-[400px]">
+        <!-- 內容載入區：啟動時顯示轉圈圈 -->
+        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             <div class="col-span-full py-24 text-center flex flex-col items-center justify-center">
                 <div class="relative h-16 w-16 mb-6">
                     <div class="absolute inset-0 border-4 border-slate-200 rounded-full opacity-50"></div>
-                    <!-- 使用自定義的 loading-animation 類別 -->
-                    <div class="absolute inset-0 border-4 border-t-kcis-blue rounded-full loading-animation"></div>
+                    <div class="absolute inset-0 border-4 border-t-kcis-blue rounded-full active-spinner"></div>
                 </div>
                 <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
                 <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
@@ -182,16 +181,13 @@
 
         async function init() {
             try {
-                // 數據抓取前，給予 500ms 讓瀏覽器穩定旋轉動畫
-                await new Promise(r => setTimeout(r, 500));
-
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
                     fetch(API_BASE + "?action=getCourseData").then(r => r.json())
                 ]);
                 
-                // 再次暫停 50ms，防止處理大數據時阻塞動畫繪製
-                await new Promise(r => setTimeout(r, 50));
+                // 再次極短延遲，釋放執行緒讓動畫維持旋轉
+                await new Promise(r => setTimeout(r, 30));
 
                 allBooks = bookRes.map(item => fixKeys(item));
                 allCourses = courseRes;
@@ -378,10 +374,12 @@
             }).join('');
         }
 
-        // --- 優化啟動邏輯：確保頁面渲染完成後再背景抓取 ---
+        // --- 優化啟動邏輯：確保頁面渲染完成、動畫跑起來後，再背景執行重型 init ---
         window.addEventListener('load', () => {
-            // 使用 setTimeout 確保瀏覽器已經畫出 Header 和動畫圈圈
-            setTimeout(init, 50); 
+            // 延遲 800 毫秒啟動，這段時間足夠讓瀏覽器啟動 CSS 旋轉動畫
+            setTimeout(() => {
+                init();
+            }, 800); 
         });
     </script>
 </body>
