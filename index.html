@@ -10,6 +10,7 @@
         .bg-kcis-blue { background-color: var(--kcis-blue); }
         .text-kcis-blue { color: var(--kcis-blue); }
         
+        /* 基礎樣式 */
         .card { transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         select, input { font-size: 15px !important; color: #1e293b !important; font-weight: 700 !important; }
@@ -40,21 +41,43 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* --- 徹底修正：CSS 獨立旋轉定義 --- */
-        @keyframes master-spin {
+        /* --- 全螢幕 Loading 樣式 --- */
+        @keyframes full-spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        .active-spinner {
-            display: inline-block;
-            animation: master-spin 0.8s linear infinite !important;
+        #full-page-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        .spinner-core {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 163, 224, 0.1);
+            border-top: 4px solid #00A3E0;
+            border-radius: 50%;
+            animation: full-spin 0.8s linear infinite;
             will-change: transform;
-            transform: translateZ(0); /* 強制開啟 3D 加速 */
         }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    <!-- Header 區塊：立即呈現 -->
+    
+    <!-- 全螢幕載入遮罩 (優先顯示) -->
+    <div id="full-page-loader">
+        <div class="spinner-core mb-4"></div>
+        <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-1 italic">Connecting to KCIS Database</h2>
+        <p class="text-kcis-blue font-bold tracking-[0.2em] text-[10px] animate-pulse uppercase">Syncing Library... Please wait</p>
+    </div>
+
+    <!-- 主網頁內容 -->
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
         <div class="max-w-7xl mx-auto px-4 py-3">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
@@ -98,17 +121,7 @@
     </div>
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
-        <!-- 內容載入區：啟動時顯示轉圈圈 -->
-        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            <div class="col-span-full py-24 text-center flex flex-col items-center justify-center">
-                <div class="relative h-16 w-16 mb-6">
-                    <div class="absolute inset-0 border-4 border-slate-200 rounded-full opacity-50"></div>
-                    <div class="absolute inset-0 border-4 border-t-kcis-blue rounded-full active-spinner"></div>
-                </div>
-                <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
-                <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
-            </div>
-        </div>
+        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
         <div id="sequenceView" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
         </div>
@@ -181,23 +194,30 @@
 
         async function init() {
             try {
+                // 第一階段：確保動畫在抓取大數據前已經順暢旋轉
+                await new Promise(r => setTimeout(r, 600));
+
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
                     fetch(API_BASE + "?action=getCourseData").then(r => r.json())
                 ]);
                 
-                // 再次極短延遲，釋放執行緒讓動畫維持旋轉
-                await new Promise(r => setTimeout(r, 30));
-
+                // 第二階段：數據解析與渲染
                 allBooks = bookRes.map(item => fixKeys(item));
                 allCourses = courseRes;
 
                 setupFilters();
                 renderSequence();
+                
+                // 渲染完成後，平滑消失 Loader
+                const loader = document.getElementById('full-page-loader');
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.visibility = 'hidden';
+                }, 500);
 
             } catch (e) { 
-                console.error("Sync Error:", e);
-                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-500 font-black px-4"><div class="bg-red-50 p-6 rounded-2xl border-2 border-red-100 max-w-sm mx-auto">⚠️ 連線超時。請確認 VPN 或網路後重新整理。</div></div>`;
+                document.getElementById('full-page-loader').innerHTML = `<div class="text-red-500 font-black px-4 text-center">⚠️ Connection timeout.<br>Please refresh the page.</div>`;
             }
         }
 
@@ -374,12 +394,10 @@
             }).join('');
         }
 
-        // --- 優化啟動邏輯：確保頁面渲染完成、動畫跑起來後，再背景執行重型 init ---
+        // --- 啟動邏輯：確保 Loader 優先呈現 ---
         window.addEventListener('load', () => {
-            // 延遲 800 毫秒啟動，這段時間足夠讓瀏覽器啟動 CSS 旋轉動畫
-            setTimeout(() => {
-                init();
-            }, 800); 
+            // 使用 setTimeout 確保轉圈圈先在畫面上轉動幾下，再開始背景抓資料
+            setTimeout(init, 300); 
         });
     </script>
 </body>
