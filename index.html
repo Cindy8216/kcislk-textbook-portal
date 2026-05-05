@@ -1,27 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>康橋國際學校林口校區 - 中學部IP課本清單</title>
+    <title>康橋國際學校林口校區 - 中學部國際處課本查詢系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --kcis-blue: #00A3E0; --semester-purple: #930F84; }
         .bg-kcis-blue { background-color: var(--kcis-blue); }
         .text-kcis-blue { color: var(--kcis-blue); }
+        
+        /* 基礎卡片動效 */
         .card { transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         select, input { font-size: 15px !important; color: #1e293b !important; font-weight: 700 !important; }
         .sticky-header { backdrop-filter: blur(12px); background-color: rgba(255, 255, 255, 0.9); }
+        
+        /* 標籤與課程樣式 */
         .course-highlight { background: #E0F2FE; border-left: 4px solid var(--kcis-blue); padding: 6px 10px; margin: 8px 0; border-radius: 0 4px 4px 0; }
         .tag-semester { background-color: var(--semester-purple) !important; color: white !important; }
         .tag-wholeyear { background-color: #1e293b !important; color: white !important; }
         .tab-btn { border-bottom: 3px solid transparent; padding-bottom: 8px; transition: all 0.3s; color: #94a3b8; font-weight: 800; font-size: 13px; }
         .tab-active { border-bottom: 3px solid var(--kcis-blue); color: var(--kcis-blue); }
         
-        @keyframes spin-fast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .force-spin { animation: spin-fast 1s linear infinite; }
+        /* --- 修正後的 Loading 動畫：確保手機流暢 --- */
+        @keyframes spin-fast {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .force-spin { 
+            display: inline-block;
+            animation: spin-fast 1s linear infinite !important;
+            -webkit-animation: spin-fast 1s linear infinite !important;
+            will-change: transform; /* 啟動 GPU 加速 */
+        }
 
+        /* 課程序列卡片邊框色 */
         .seq-card { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .seq-card.english { border-left-color: #FB923C; }
         .seq-card.math { border-left-color: #A855F7; }
@@ -46,6 +60,7 @@
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
         <div class="max-w-7xl mx-auto px-4 py-3">
+            <!-- 響應式 Logo 與 標題 -->
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <img src="school-logo.jpg" alt="KCIS Logo" class="h-8 w-auto">
@@ -64,6 +79,7 @@
                 </nav>
             </div>
             
+            <!-- 課本篩選 -->
             <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
                 <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
                 <select id="subjectFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
@@ -71,6 +87,7 @@
                 <input type="text" id="searchBox" placeholder="Global Search ISBN..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold">
             </div>
 
+            <!-- 序列篩選 -->
             <div id="filterSequence" class="hidden py-2">
                 <div class="flex gap-2 px-2 overflow-x-auto no-scrollbar justify-start lg:justify-center pb-2" id="seqSubjectBtns" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
                     <div class="filter-chip active" onclick="filterSeq('All', this)">All Subjects</div>
@@ -87,16 +104,18 @@
     </div>
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
+        <!-- 初始 Loading 動畫區塊 -->
         <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            <div class="col-span-full py-32 text-center">
-                <div class="relative inline-block mb-6">
-                    <div class="h-16 w-16 border-4 border-slate-200 rounded-full"></div>
-                    <div class="absolute top-0 h-16 w-16 border-4 border-t-kcis-blue rounded-full force-spin"></div>
+            <div class="col-span-full py-32 text-center flex flex-col items-center justify-center">
+                <div class="relative h-16 w-16 mb-6">
+                    <div class="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-t-kcis-blue rounded-full force-spin"></div>
                 </div>
                 <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
                 <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
             </div>
         </div>
+        <!-- 課程序列顯示區 (6 欄位佈局) -->
         <div id="sequenceView" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
         </div>
@@ -309,13 +328,11 @@
 
         function renderSequence() {
             const container = document.getElementById('sequenceCols');
-            // 開放 G7-G12
             const grades = [7, 8, 9, 10, 11, 12];
             
-            // 科目排序權重
+            // 專業排序邏輯
             const subjectOrder = { 'English': 1, 'Math': 2, 'Science': 3, 'Social Studies': 4, 'Chinese': 5, 'Electives': 6 };
-            // 等級排序權重
-            const levelOrder = { '': 1,'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
+            const levelOrder = { '': 1, 'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
 
             container.innerHTML = grades.map(g => {
                 let gradeCourses = allCourses.filter(c => {
@@ -328,12 +345,12 @@
                     return matchGrade && matchSubj;
                 });
 
-                // 排序邏輯：科目 -> 等級 -> 名稱
+                // 排序：科目 -> 等級(RG>HN>AP) -> 名稱
                 gradeCourses.sort((a, b) => {
                     const sA = subjectOrder[a.subject] || 99, sB = subjectOrder[b.subject] || 99;
                     if (sA !== sB) return sA - sB;
                     const typeA = String(a.type || '').toUpperCase().trim(), typeB = String(b.type || '').toUpperCase().trim();
-                    const lA = levelOrder[typeA] || 5, lB = levelOrder[typeB] || 5;
+                    const lA = levelOrder[typeA] || (typeA === '' ? 1 : 4), lB = levelOrder[typeB] || (typeB === '' ? 1 : 4);
                     if (lA !== lB) return lA - lB;
                     return String(a.name).localeCompare(String(b.name));
                 });
@@ -360,7 +377,12 @@
                 </div>`;
             }).join('');
         }
-        init();
+
+        // --- 修正啟動時機：確保 Loading 先開始跑 ---
+        window.addEventListener('load', () => {
+            // 稍微延遲讓動畫執行緒啟動
+            setTimeout(init, 100);
+        });
     </script>
 </body>
 </html>
