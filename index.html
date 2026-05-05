@@ -10,7 +10,6 @@
         .bg-kcis-blue { background-color: var(--kcis-blue); }
         .text-kcis-blue { color: var(--kcis-blue); }
         
-        /* 基礎樣式 */
         .card { transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         select, input { font-size: 15px !important; color: #1e293b !important; font-weight: 700 !important; }
@@ -41,40 +40,23 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* --- 修正後的 Loading 動畫：完全獨立於主執行緒 --- */
-        @keyframes spinner-rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* --- 修正後的自定義旋轉動畫：保證流暢感 --- */
+        @keyframes kcis-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
-        .loading-spinner {
-            border: 4px solid rgba(0, 163, 224, 0.1);
-            border-top: 4px solid #00A3E0;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spinner-rotate 0.8s linear infinite;
-            /* 關鍵：強制啟動 GPU 渲染模式 */
-            -webkit-transform: translateZ(0);
-            -ms-transform: translateZ(0);
+        .loading-animation {
+            animation: kcis-spin 0.8s linear infinite !important;
+            /* 強制使用硬體加速，避免被 JS 阻塞 */
+            will-change: transform;
             transform: translateZ(0);
-        }
-        #main-loader {
-            transition: opacity 0.5s ease;
         }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    
-    <!-- 全域載入遮罩 -->
-    <div id="main-loader" class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
-        <div class="loading-spinner mb-4"></div>
-        <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-1 italic">Connecting to KCIS Database</h2>
-        <p class="text-kcis-blue font-bold tracking-[0.2em] text-[10px] animate-pulse uppercase">Syncing Library... Please wait</p>
-    </div>
-
+    <!-- Header 與 篩選列：這個區域會立即呈現 -->
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
         <div class="max-w-7xl mx-auto px-4 py-3">
-            <!-- Logo 與 標題 -->
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <img src="school-logo.jpg" alt="KCIS Logo" class="h-8 w-auto">
@@ -116,7 +98,18 @@
     </div>
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
-        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
+        <!-- 載入動畫區域：保證這裡會持續旋轉 -->
+        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 min-h-[400px]">
+            <div class="col-span-full py-24 text-center flex flex-col items-center justify-center">
+                <div class="relative h-16 w-16 mb-6">
+                    <div class="absolute inset-0 border-4 border-slate-200 rounded-full opacity-50"></div>
+                    <!-- 使用自定義的 loading-animation 類別 -->
+                    <div class="absolute inset-0 border-4 border-t-kcis-blue rounded-full loading-animation"></div>
+                </div>
+                <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-2 italic">Connecting to KCIS Database</h2>
+                <p class="text-kcis-blue font-bold tracking-[0.2em] text-xs animate-pulse uppercase">Syncing Library... Please wait</p>
+            </div>
+        </div>
         <div id="sequenceView" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
         </div>
@@ -189,15 +182,15 @@
 
         async function init() {
             try {
-                // 給予足夠的延遲，讓瀏覽器先繪製出動畫
-                await new Promise(r => setTimeout(r, 600));
+                // 數據抓取前，給予 500ms 讓瀏覽器穩定旋轉動畫
+                await new Promise(r => setTimeout(r, 500));
 
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
                     fetch(API_BASE + "?action=getCourseData").then(r => r.json())
                 ]);
                 
-                // 再次暫停，防止處理大數據時阻塞動畫
+                // 再次暫停 50ms，防止處理大數據時阻塞動畫繪製
                 await new Promise(r => setTimeout(r, 50));
 
                 allBooks = bookRes.map(item => fixKeys(item));
@@ -205,13 +198,10 @@
 
                 setupFilters();
                 renderSequence();
-                
-                const loader = document.getElementById('main-loader');
-                loader.style.opacity = '0';
-                setTimeout(() => loader.style.display = 'none', 500);
 
             } catch (e) { 
-                document.getElementById('main-loader').innerHTML = `<div class="text-red-500 font-black px-4 text-center">⚠️ Connection failed.<br>Please check your internet or VPN.</div>`;
+                console.error("Sync Error:", e);
+                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-red-500 font-black px-4"><div class="bg-red-50 p-6 rounded-2xl border-2 border-red-100 max-w-sm mx-auto">⚠️ 連線超時。請確認 VPN 或網路後重新整理。</div></div>`;
             }
         }
 
@@ -388,14 +378,10 @@
             }).join('');
         }
 
-        // 啟動邏輯
+        // --- 優化啟動邏輯：確保頁面渲染完成後再背景抓取 ---
         window.addEventListener('load', () => {
-            // 使用雙重 requestAnimationFrame 確保 Loader 動畫在資料抓取前就先運作
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    setTimeout(init, 300); 
-                });
-            });
+            // 使用 setTimeout 確保瀏覽器已經畫出 Header 和動畫圈圈
+            setTimeout(init, 50); 
         });
     </script>
 </body>
