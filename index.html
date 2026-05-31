@@ -195,7 +195,7 @@
         async function init() {
             try {
                 // 第一階段：確保動畫在抓取大數據前已經順暢旋轉
-                await new Promise(r => setTimeout(r, 600));
+                
 
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
@@ -397,7 +397,7 @@
         // --- 啟動邏輯：確保 Loader 優先呈現 ---
         window.addEventListener('load', () => {
             // 使用 setTimeout 確保轉圈圈先在畫面上轉動幾下，再開始背景抓資料
-            setTimeout(init, 300); 
+            init(); 
         });
     </script>
 </body>
