@@ -9,13 +9,13 @@
         :root { --kcis-blue: #00A3E0; --semester-purple: #930F84; }
         .bg-kcis-blue { background-color: var(--kcis-blue); }
         .text-kcis-blue { color: var(--kcis-blue); }
-        
+
         /* 基礎樣式 */
         .card { transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         select, input { font-size: 15px !important; color: #1e293b !important; font-weight: 700 !important; }
         .sticky-header { backdrop-filter: blur(12px); background-color: rgba(255, 255, 255, 0.9); }
-        
+
         .course-highlight { background: #E0F2FE; border-left: 4px solid var(--kcis-blue); padding: 6px 10px; margin: 8px 0; border-radius: 0 4px 4px 0; }
         .tag-semester { background-color: var(--semester-purple) !important; color: white !important; }
         .tag-wholeyear { background-color: #1e293b !important; color: white !important; }
@@ -29,10 +29,10 @@
         .seq-card.social { border-left-color: #0ea5e9; }
         .seq-card.chinese { border-left-color: #EC4899; }
         .seq-card.electives { border-left-color: #64748b; }
-        
+
         .ap-tag { background: #EF4444; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
         .hn-tag { background: #F59E0B; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
-        
+
         .filter-chip { padding: 6px 16px; border-radius: 99px; font-size: 12px; font-weight: 800; border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer; color: #64748b; background: white; white-space: nowrap; }
         .filter-chip.active { background: var(--kcis-blue); color: white; border-color: var(--kcis-blue); }
         .filter-chip-ap { border-color: #EF4444; color: #EF4444; }
@@ -40,6 +40,11 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* --- 暑期書單樣式 --- */
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .cover-wrap { transition: transform .3s ease, box-shadow .3s ease; }
+        .reading-card:hover .cover-wrap { transform: translateY(-5px); box-shadow: 0 18px 28px -10px rgba(0,0,0,0.22); }
 
         /* --- 全螢幕 Loading 樣式 --- */
         @keyframes full-spin {
@@ -69,7 +74,7 @@
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    
+
     <!-- 全螢幕載入遮罩 (優先顯示) -->
     <div id="full-page-loader">
         <div class="spinner-core mb-4"></div>
@@ -95,9 +100,10 @@
                 <nav class="flex gap-6 sm:gap-8">
                     <button id="btnTextbook" onclick="switchMode('textbook')" class="tab-btn tab-active uppercase text-[11px] sm:text-xs">Textbook List</button>
                     <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-[11px] sm:text-xs">Course Sequence</button>
+                    <button id="btnReading" onclick="switchMode('reading')" class="tab-btn uppercase text-[11px] sm:text-xs">Reading List</button>
                 </nav>
             </div>
-            
+
             <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
                 <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
                 <select id="subjectFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
@@ -117,6 +123,12 @@
                     <div class="filter-chip" onclick="filterSeq('Electives', this)">Electives</div>
                 </div>
             </div>
+
+            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-3 gap-2 flex-grow lg:max-w-3xl mx-auto">
+                <select id="readGenreFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Genres</option></select>
+                <select id="readGradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Grades</option></select>
+                <input type="text" id="readSearchBox" placeholder="Search title / author..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold col-span-2 md:col-span-1">
+            </div>
         </div>
     </div>
 
@@ -125,12 +137,34 @@
         <div id="sequenceView" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
         </div>
+
+        <div id="readingView" class="hidden">
+            <!-- 老師的暑假閱讀邀請信 -->
+            <div class="relative max-w-3xl mx-auto mb-12 text-center">
+                <div class="inline-block bg-kcis-blue text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest mb-4">Summer 2026</div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-800 italic tracking-tight mb-1">Summer Reading List</h2>
+                <p class="text-kcis-blue font-bold uppercase tracking-[0.2em] text-[11px] mb-6">暑假閱讀推薦書單 · IPD Teachers' Picks</p>
+                <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 sm:p-8 text-left">
+                    <p class="font-bold text-slate-700 mb-3">Dear Kang Chiao Linkou students,</p>
+                    <p class="text-sm text-slate-600 leading-relaxed mb-3">None of these books will be on a test. We, your teachers, will not create projects, assign homework or attach any other means of academic or personal responsibility to the reading of these texts. This is a list of books that have moved us, inspired us, and opened our eyes to lives lived other than our own. The purpose of this list is to share our love of reading with you and maybe in doing so, you may find that you too are interested in stories, fiction and nonfiction.</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">You don't have to read all of them. You may not read any of them, but perhaps you will find a book here that isn't too long, too boring, or too difficult. Maybe you will find a book that seems like it was written just for you in this time and place. We hope to hear about your reading journey when we meet again. Have a great summer.</p>
+                    <p class="text-right text-kcis-blue font-black italic mt-4">— Your Teachers</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between max-w-7xl mx-auto mb-5 px-1">
+                <h3 class="text-lg font-black text-slate-800 italic border-l-4 border-kcis-blue pl-3 uppercase">The Books</h3>
+                <span id="readingCount" class="text-xs font-black text-slate-400 uppercase tracking-widest"></span>
+            </div>
+
+            <div id="readingGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5"></div>
+        </div>
     </main>
 
     <footer class="bg-white border-t mt-12">
         <div class="max-w-7xl mx-auto px-6 py-12">
             <h2 class="text-xl font-black text-slate-800 mb-8 border-l-4 border-kcis-blue pl-3 italic uppercase">Important Information</h2>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-12 mb-12">
                 <div>
                     <h3 class="font-bold text-kcis-blue mb-2">領取說明 Distribution</h3>
@@ -168,7 +202,7 @@
                     <p class="text-[11px] text-slate-400 italic font-medium">The school reserves the right to adjust textbook selections based on instructional requirements.</p>
                 </div>
             </div>
-            
+
             <div class="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="text-center md:text-left">
                     <p class="text-xs font-black text-slate-400 uppercase tracking-widest">&copy; 2026 Kang Chiao International School Linkou Campus</p>
@@ -188,6 +222,15 @@
         </div>
     </footer>
 
+    <!-- 書籍詳情彈窗 -->
+    <div id="bookModal" class="hidden fixed inset-0 z-[100] items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeBook()"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <button onclick="closeBook()" class="absolute top-4 right-4 z-10 bg-slate-100 hover:bg-slate-200 rounded-full w-9 h-9 flex items-center justify-center font-black text-slate-500">✕</button>
+            <div id="bookModalBody"></div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_knuNkj3LpCmnfJPXK8r4GM-MdUUfwVys1YMw7T-uY59Y-gQ/exec";
         let allBooks = [], allCourses = [], currentSeqFilter = 'All';
@@ -195,20 +238,20 @@
         async function init() {
             try {
                 // 第一階段：確保動畫在抓取大數據前已經順暢旋轉
-                
+
 
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
                     fetch(API_BASE + "?action=getCourseData").then(r => r.json())
                 ]);
-                
+
                 // 第二階段：數據解析與渲染
                 allBooks = bookRes.map(item => fixKeys(item));
                 allCourses = courseRes;
 
                 setupFilters();
                 renderSequence();
-                
+
                 // 渲染完成後，平滑消失 Loader
                 const loader = document.getElementById('full-page-loader');
                 loader.style.opacity = '0';
@@ -216,7 +259,7 @@
                     loader.style.visibility = 'hidden';
                 }, 500);
 
-            } catch (e) { 
+            } catch (e) {
                 document.getElementById('full-page-loader').innerHTML = `<div class="text-red-500 font-black px-4 text-center">⚠️ Connection timeout.<br>Please refresh the page.</div>`;
             }
         }
@@ -241,13 +284,19 @@
         }
 
         function switchMode(mode) {
-            const isTextbook = mode === 'textbook';
-            document.getElementById('btnTextbook').className = isTextbook ? 'tab-btn tab-active' : 'tab-btn';
-            document.getElementById('btnSequence').className = !isTextbook ? 'tab-btn tab-active' : 'tab-btn';
-            document.getElementById('filterTextbook').classList.toggle('hidden', !isTextbook);
-            document.getElementById('filterSequence').classList.toggle('hidden', isTextbook);
-            document.getElementById('textbookView').classList.toggle('hidden', !isTextbook);
-            document.getElementById('sequenceView').classList.toggle('hidden', isTextbook);
+            const modes = ['textbook', 'sequence', 'reading'];
+            if (!modes.includes(mode)) mode = 'textbook';
+            const tabClass = (active) => 'tab-btn uppercase text-[11px] sm:text-xs' + (active ? ' tab-active' : '');
+            document.getElementById('btnTextbook').className = tabClass(mode === 'textbook');
+            document.getElementById('btnSequence').className = tabClass(mode === 'sequence');
+            document.getElementById('btnReading').className = tabClass(mode === 'reading');
+            document.getElementById('filterTextbook').classList.toggle('hidden', mode !== 'textbook');
+            document.getElementById('filterSequence').classList.toggle('hidden', mode !== 'sequence');
+            document.getElementById('filterReading').classList.toggle('hidden', mode !== 'reading');
+            document.getElementById('textbookView').classList.toggle('hidden', mode !== 'textbook');
+            document.getElementById('sequenceView').classList.toggle('hidden', mode !== 'sequence');
+            document.getElementById('readingView').classList.toggle('hidden', mode !== 'reading');
+            if (mode === 'reading' && !readingLoaded) loadReading();
         }
 
         function filterSeq(filterVal, btn) {
@@ -258,8 +307,8 @@
         }
 
         function setupFilters() {
-            const gradeEl = document.getElementById('gradeFilter'), 
-                  subjectEl = document.getElementById('subjectFilter'), 
+            const gradeEl = document.getElementById('gradeFilter'),
+                  subjectEl = document.getElementById('subjectFilter'),
                   levelEl = document.getElementById('levelFilter');
             [gradeEl, subjectEl, levelEl].forEach(el => el.classList.remove('opacity-50', 'cursor-not-allowed'));
             const grades = [...new Set(allBooks.map(b => b.grade).filter(Boolean))].sort((a,b) => parseInt(a)-parseInt(b));
@@ -302,10 +351,10 @@
             document.getElementById('textbookView').innerHTML = filtered.map(b => {
                 const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
                 const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
-                
+
                 const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
-                const cleanIsbn = rawIsbn.replace(/\D/g, ''); 
-                
+                const cleanIsbn = rawIsbn.replace(/\D/g, '');
+
                 let finalCoverUrl = 'https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=In-house+Resource';
                 if (b.coverurl && b.coverurl.toLowerCase().startsWith('http')) {
                     finalCoverUrl = b.coverurl;
@@ -313,10 +362,10 @@
                     finalCoverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-M.jpg`;
                 }
 
-                const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') 
+                const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-')
                     ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
                     : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
-                
+
                 const rawPrint = String(b.price || '').trim().toUpperCase();
                 const rawDigital = String(b.ebook || '').trim().toUpperCase();
 
@@ -394,10 +443,248 @@
             }).join('');
         }
 
+        /* =========================================================
+           暑期閱讀推薦書單 (Reading List) — 即時讀取 Google Sheet
+           ========================================================= */
+        const READING_CSV = "https://docs.google.com/spreadsheets/d/1AbJwf2pSneYwNOKOEiEnQNRHk0Pruo7vvEFJEbTaG0g/gviz/tq?tqx=out:csv&gid=948064640";
+        let readingBooks = [], renderedReading = [], readingLoaded = false, coverObserver = null;
+
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 小型 CSV 解析器：支援引號內的逗號與換行
+        function parseCSV(text) {
+            const rows = []; let row = [], cur = '', inQ = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQ) {
+                    if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+                    else cur += c;
+                } else {
+                    if (c === '"') inQ = true;
+                    else if (c === ',') { row.push(cur); cur = ''; }
+                    else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+                    else if (c === '\r') { /* skip */ }
+                    else cur += c;
+                }
+            }
+            if (cur.length || row.length) { row.push(cur); rows.push(row); }
+            return rows;
+        }
+
+        // 把雜亂的 Genre 文字收斂成幾個大類，方便下拉選單
+        // (來源資料有些格子夾雜換行/空白，先壓平再比對)
+        function normGenre(g) {
+            const s = (g || '').replace(/\s+/g, ' ').trim();          // 清掉換行的乾淨標籤
+            const c = s.toLowerCase().replace(/[^a-z0-9]/g, '');       // 壓成連續字串方便比對
+            if (!s) return 'Other';
+            if (c.includes('nonfiction')) return 'Non-fiction';
+            if (c.includes('sciencefiction') || c.includes('scifi')) return 'Science Fiction';
+            if (c.includes('fantasy')) return 'Fantasy';
+            if (c.includes('memoir') || c.includes('biograph')) return 'Memoir / Biography';
+            if (c.includes('comingofage')) return 'Coming of Age';
+            if (c.includes('poetry')) return 'Poetry';
+            if (c.includes('graphic')) return 'Graphic Novel';
+            if (c.includes('horror')) return 'Horror';
+            if (c.includes('mystery')) return 'Mystery';
+            if (c.includes('youngadult')) return 'Young Adult';
+            if (c.includes('fiction')) return 'Fiction';
+            return s;
+        }
+
+        // 判斷某本書的 Grade 字串 (例如 "G9-12"、"G11-G12"、"G8") 是否涵蓋某年級
+        function gradeMatches(g, n) {
+            const nums = (String(g).match(/\d+/g) || []).map(Number).filter(x => x >= 7 && x <= 12);
+            if (!nums.length) return false;
+            if (nums.length === 1) return nums[0] === n;
+            return n >= Math.min(...nums) && n <= Math.max(...nums);
+        }
+
+        function cleanComment(text, teacher) {
+            let t = (text || '').trim();
+            const tt = (teacher || '').trim();
+            // 評語結尾常重複老師名字，去掉避免重複顯示
+            if (tt && t.endsWith(tt)) t = t.slice(0, -tt.length).trim();
+            return t;
+        }
+
+        async function loadReading() {
+            readingLoaded = true;
+            const grid = document.getElementById('readingGrid');
+            grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">Loading books...</div>';
+            try {
+                const res = await fetch(READING_CSV);
+                const text = await res.text();
+                const rows = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+                if (!rows.length) throw new Error('empty');
+                const header = rows.shift().map(h => h.toLowerCase().trim());
+                const col = {};
+                header.forEach((h, i) => {
+                    if (col.title == null && (h.includes('書名') || h.includes('title'))) col.title = i;
+                    else if (col.author == null && h.includes('author')) col.author = i;
+                    else if (col.genre == null && h.includes('genre')) col.genre = i;
+                    else if (col.grade == null && h.includes('grade')) col.grade = i;
+                    else if (col.lexile == null && h.includes('lexile')) col.lexile = i;
+                    else if (col.link == null && h.includes('link')) col.link = i;
+                    else if (col.comment == null && h.includes('comment')) col.comment = i;
+                    else if (col.teacher == null && h.includes('teacher')) col.teacher = i;
+                    else if (col.year == null && h.includes('recommend')) col.year = i;
+                    else if (col.cover == null && (h.includes('cover') || h.includes('書封'))) col.cover = i;
+                    else if (col.pub == null && h.includes('pub')) col.pub = i;
+                });
+                const get = (r, k) => (col[k] != null ? (r[col[k]] || '').trim() : '');
+                const flat = (r, k) => get(r, k).replace(/\s+/g, ' ').trim();   // 壓平單行欄位
+                readingBooks = rows.map(r => ({
+                    title: flat(r, 'title'), author: flat(r, 'author'), genre: flat(r, 'genre'),
+                    grade: flat(r, 'grade'), lexile: flat(r, 'lexile'), link: get(r, 'link'),
+                    pub: flat(r, 'pub'), year: flat(r, 'year'), teacher: flat(r, 'teacher'),
+                    comment: get(r, 'comment'), cover: get(r, 'cover')
+                })).filter(b => b.title);
+
+                setupReadingFilters();
+                renderReading();
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-red-500 font-black italic">⚠️ 無法讀取書單。請確認 Google Sheet 已設為「知道連結的任何人可檢視」。</div>';
+            }
+        }
+
+        function setupReadingFilters() {
+            const genres = [...new Set(readingBooks.map(b => normGenre(b.genre)).filter(Boolean))].sort();
+            const gf = document.getElementById('readGenreFilter');
+            gf.innerHTML = '<option value="All">All Genres</option>' + genres.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+            const grf = document.getElementById('readGradeFilter');
+            grf.innerHTML = '<option value="All">All Grades</option>' + [7, 8, 9, 10, 11, 12].map(n => `<option value="${n}">Grade ${n}</option>`).join('');
+            gf.onchange = renderReading;
+            grf.onchange = renderReading;
+            document.getElementById('readSearchBox').oninput = renderReading;
+        }
+
+        function readingCardHTML(b, i) {
+            return `
+            <div class="reading-card cursor-pointer" onclick="openBook(${i})">
+                <div class="cover-wrap relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100" style="aspect-ratio:2/3;">
+                    <div class="absolute inset-0 flex items-center justify-center p-3 text-center bg-gradient-to-br from-slate-100 to-slate-200">
+                        <span class="text-[11px] font-black text-slate-500 leading-tight">${esc(b.title)}</span>
+                    </div>
+                    <img class="cover-img absolute inset-0 w-full h-full object-cover" style="opacity:0;transition:opacity .4s" onload="this.style.opacity=1" data-idx="${i}">
+                    ${b.genre ? `<div class="absolute top-2 left-2 bg-kcis-blue/90 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wide max-w-[85%] truncate">${esc(normGenre(b.genre))}</div>` : ''}
+                </div>
+                <div class="mt-2">
+                    <h3 class="font-black text-slate-800 text-[13px] leading-tight line-clamp-2">${esc(b.title)}</h3>
+                    <p class="text-[11px] text-slate-400 font-bold italic truncate">${esc(b.author)}</p>
+                </div>
+            </div>`;
+        }
+
+        function renderReading() {
+            const genre = document.getElementById('readGenreFilter').value;
+            const grade = document.getElementById('readGradeFilter').value;
+            const kw = document.getElementById('readSearchBox').value.trim().toLowerCase();
+            renderedReading = readingBooks.filter(b => {
+                if (genre !== 'All' && normGenre(b.genre) !== genre) return false;
+                if (grade !== 'All' && !gradeMatches(b.grade, +grade)) return false;
+                if (kw) {
+                    const hay = (b.title + ' ' + b.author + ' ' + b.genre + ' ' + b.comment).toLowerCase();
+                    if (!hay.includes(kw)) return false;
+                }
+                return true;
+            });
+            const cnt = document.getElementById('readingCount');
+            if (cnt) cnt.textContent = renderedReading.length + ' book' + (renderedReading.length === 1 ? '' : 's');
+            const grid = document.getElementById('readingGrid');
+            if (!renderedReading.length) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching books found.</div>';
+                return;
+            }
+            grid.innerHTML = renderedReading.map((b, i) => readingCardHTML(b, i)).join('');
+            if (!coverObserver) {
+                coverObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(e => {
+                        if (e.isIntersecting) {
+                            const img = e.target;
+                            loadCover(img, renderedReading[+img.dataset.idx]);
+                            coverObserver.unobserve(img);
+                        }
+                    });
+                }, { rootMargin: '300px' });
+            }
+            document.querySelectorAll('#readingGrid .cover-img').forEach(img => coverObserver.observe(img));
+        }
+
+        // 取得書封：先用試算表貼的網址，再查快取，最後問 Google Books
+        async function loadCover(img, b) {
+            if (!img || !b) return;
+            if (b.cover && /^https?:/i.test(b.cover)) { img.src = b.cover; return; }
+            const key = 'rcover:' + b.title + '|' + b.author;
+            let cached = null;
+            try { cached = localStorage.getItem(key); } catch (e) {}
+            if (cached) { if (cached !== 'none') img.src = cached; return; }
+            try {
+                let q = 'intitle:' + b.title;
+                const au = (b.author || '').split('(')[0].trim();
+                if (au) q += ' inauthor:' + au;
+                const r = await fetch('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q) + '&maxResults=1&country=US');
+                const d = await r.json();
+                let url = d && d.items && d.items[0] && d.items[0].volumeInfo && d.items[0].volumeInfo.imageLinks && d.items[0].volumeInfo.imageLinks.thumbnail;
+                if (url) {
+                    url = url.replace(/^http:/, 'https:').replace('&edge=curl', '');
+                    img.src = url;
+                    try { localStorage.setItem(key, url); } catch (e) {}
+                } else {
+                    try { localStorage.setItem(key, 'none'); } catch (e) {}
+                }
+            } catch (e) { /* 找不到就保留底圖 */ }
+        }
+
+        function openBook(i) {
+            const b = renderedReading[i];
+            if (!b) return;
+            const comment = cleanComment(b.comment, b.teacher);
+            document.getElementById('bookModalBody').innerHTML = `
+            <div class="grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-6 p-6 sm:p-8">
+                <div>
+                    <div class="cover-wrap relative rounded-2xl overflow-hidden border border-slate-200 shadow bg-slate-100" style="aspect-ratio:2/3;">
+                        <div class="absolute inset-0 flex items-center justify-center p-3 text-center bg-gradient-to-br from-slate-100 to-slate-200"><span class="text-[11px] font-black text-slate-500 leading-tight">${esc(b.title)}</span></div>
+                        <img id="modalCover" class="absolute inset-0 w-full h-full object-cover" style="opacity:0;transition:opacity .4s" onload="this.style.opacity=1">
+                    </div>
+                    ${b.link ? `<a href="${esc(b.link)}" target="_blank" rel="noopener" class="mt-3 block text-center bg-kcis-blue hover:opacity-90 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl transition">View Online 🔗</a>` : ''}
+                </div>
+                <div>
+                    ${b.genre ? `<span class="text-[10px] font-black text-kcis-blue uppercase tracking-widest">${esc(b.genre)}</span>` : ''}
+                    <h2 class="text-2xl font-black text-slate-800 leading-tight mt-1 mb-1">${esc(b.title)}</h2>
+                    <p class="text-slate-400 font-bold italic mb-4">${esc(b.author)}</p>
+                    <div class="flex flex-wrap gap-2 mb-5 text-[11px] font-bold">
+                        ${b.grade ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">${esc(b.grade)}</span>` : ''}
+                        ${b.lexile ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Lexile ${esc(b.lexile)}</span>` : ''}
+                        ${b.pub ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Published ${esc(b.pub)}</span>` : ''}
+                    </div>
+                    ${comment
+                        ? `<div class="border-l-4 border-kcis-blue pl-4"><p class="text-sm text-slate-600 leading-relaxed" style="white-space:pre-line">${esc(comment)}</p>${b.teacher ? `<p class="text-xs text-kcis-blue font-black italic mt-3">— ${esc(b.teacher)}</p>` : ''}</div>`
+                        : '<p class="text-sm text-slate-400 italic">No commentary yet.</p>'}
+                </div>
+            </div>`;
+            const modal = document.getElementById('bookModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            loadCover(document.getElementById('modalCover'), b);
+        }
+
+        function closeBook() {
+            const modal = document.getElementById('bookModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBook(); });
+
         // --- 啟動邏輯：確保 Loader 優先呈現 ---
         window.addEventListener('load', () => {
             // 使用 setTimeout 確保轉圈圈先在畫面上轉動幾下，再開始背景抓資料
-            init(); 
+            init();
         });
     </script>
 </body>
