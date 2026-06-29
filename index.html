@@ -124,7 +124,8 @@
                 </div>
             </div>
 
-            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-3 gap-2 flex-grow lg:max-w-3xl mx-auto">
+            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
+                <select id="readYearFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Years</option></select>
                 <select id="readGenreFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Genres</option></select>
                 <select id="readGradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Grades</option></select>
                 <input type="text" id="readSearchBox" placeholder="Search title / author..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold col-span-2 md:col-span-1">
@@ -550,12 +551,26 @@
             }
         }
 
+        // 想改「打開時預設顯示哪一年」就改這裡：
+        //   'latest' = 預設顯示最新的一年   |   'All' = 預設顯示全部   |   '2026' = 預設某一年
+        const DEFAULT_READING_YEAR = 'latest';
+
         function setupReadingFilters() {
+            // 年份下拉（由新到舊）
+            const years = [...new Set(readingBooks.map(b => (b.year || '').trim()).filter(Boolean))]
+                .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            const yf = document.getElementById('readYearFilter');
+            yf.innerHTML = '<option value="All">All Years</option>' + years.map(y => `<option value="${esc(y)}">${esc(y)} 推薦</option>`).join('');
+            let def = DEFAULT_READING_YEAR;
+            if (def === 'latest') def = years[0] || 'All';
+            if ([...yf.options].some(o => o.value === def)) yf.value = def;
+
             const genres = [...new Set(readingBooks.map(b => normGenre(b.genre)).filter(Boolean))].sort();
             const gf = document.getElementById('readGenreFilter');
             gf.innerHTML = '<option value="All">All Genres</option>' + genres.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
             const grf = document.getElementById('readGradeFilter');
             grf.innerHTML = '<option value="All">All Grades</option>' + [7, 8, 9, 10, 11, 12].map(n => `<option value="${n}">Grade ${n}</option>`).join('');
+            yf.onchange = renderReading;
             gf.onchange = renderReading;
             grf.onchange = renderReading;
             document.getElementById('readSearchBox').oninput = renderReading;
@@ -579,10 +594,12 @@
         }
 
         function renderReading() {
+            const year = document.getElementById('readYearFilter').value;
             const genre = document.getElementById('readGenreFilter').value;
             const grade = document.getElementById('readGradeFilter').value;
             const kw = document.getElementById('readSearchBox').value.trim().toLowerCase();
             renderedReading = readingBooks.filter(b => {
+                if (year !== 'All' && (b.year || '').trim() !== year) return false;
                 if (genre !== 'All' && normGenre(b.genre) !== genre) return false;
                 if (grade !== 'All' && !gradeMatches(b.grade, +grade)) return false;
                 if (kw) {
