@@ -124,11 +124,12 @@
                 </div>
             </div>
 
-            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
+            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-grow lg:max-w-5xl mx-auto">
                 <select id="readYearFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Years</option></select>
                 <select id="readGenreFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Genres</option></select>
                 <select id="readGradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Grades</option></select>
-                <input type="text" id="readSearchBox" placeholder="Search title / author..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold col-span-2 md:col-span-1">
+                <select id="readLexileFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Lexile</option></select>
+                <input type="text" id="readSearchBox" placeholder="Search title / author..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold col-span-2 md:col-span-3 lg:col-span-1">
             </div>
         </div>
     </div>
@@ -495,12 +496,50 @@
             return s;
         }
 
-        // 判斷某本書的 Grade 字串 (例如 "G9-12"、"G11-G12"、"G8") 是否涵蓋某年級
-        function gradeMatches(g, n) {
-            const nums = (String(g).match(/\d+/g) || []).map(Number).filter(x => x >= 7 && x <= 12);
-            if (!nums.length) return false;
-            if (nums.length === 1) return nums[0] === n;
-            return n >= Math.min(...nums) && n <= Math.max(...nums);
+        // 把雜亂的 Grade 字串解析成 [最低, 最高] 年級範圍
+        // 支援：單一(G8)、範圍(G9-12 / G10-G12 / G8H-12)、以上(G10+ / G9H+)
+        function bookGradeRange(g) {
+            const s = String(g);
+            const nums = (s.match(/\d+/g) || []).map(Number).filter(x => x >= 7 && x <= 12);
+            if (!nums.length) return null;
+            let min = Math.min(...nums), max = Math.max(...nums);
+            if (s.includes('+')) max = 12;   // 例如 G10+ 代表 G10 以上
+            return [min, max];
+        }
+
+        // 書的年級範圍是否和某個學段重疊 (junior=G7-9, senior=G10-12)
+        function gradeInBand(g, band) {
+            const r = bookGradeRange(g);
+            if (!r) return false;
+            const [lo, hi] = band === 'junior' ? [7, 9] : [10, 12];
+            return r[0] <= hi && r[1] >= lo;
+        }
+
+        // Lexile 級距
+        const LEXILE_BANDS = [
+            { value: 'u800',  label: 'Under 800L',   lo: 0,    hi: 799 },
+            { value: '800',   label: '800-1000L',    lo: 800,  hi: 1000 },
+            { value: '1000',  label: '1000-1200L',   lo: 1000, hi: 1200 },
+            { value: '1200',  label: '1200L+',       lo: 1200, hi: 99999 }
+        ];
+
+        // 把雜亂的 Lexile 字串解析成 [最低, 最高]，無數字回傳 null
+        function bookLexileRange(v) {
+            const s = String(v);
+            const nums = (s.match(/\d+/g) || []).map(Number);
+            if (!nums.length) return null;
+            let min = Math.min(...nums), max = Math.max(...nums);
+            if (s.includes('+')) max = 99999;   // 例如 1200+ 代表 1200 以上
+            return [min, max];
+        }
+
+        // 書的 Lexile 範圍是否和某級距重疊
+        function lexileInBand(v, value) {
+            const r = bookLexileRange(v);
+            if (!r) return false;
+            const band = LEXILE_BANDS.find(b => b.value === value);
+            if (!band) return false;
+            return r[0] <= band.hi && r[1] >= band.lo;
         }
 
         function cleanComment(text, teacher) {
@@ -560,7 +599,7 @@
             const years = [...new Set(readingBooks.map(b => (b.year || '').trim()).filter(Boolean))]
                 .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
             const yf = document.getElementById('readYearFilter');
-            yf.innerHTML = '<option value="All">All Years</option>' + years.map(y => `<option value="${esc(y)}">${esc(y)} 推薦</option>`).join('');
+            yf.innerHTML = '<option value="All">All Years</option>' + years.map(y => `<option value="${esc(y)}">${esc(y)} Picks</option>`).join('');
             let def = DEFAULT_READING_YEAR;
             if (def === 'latest') def = years[0] || 'All';
             if ([...yf.options].some(o => o.value === def)) yf.value = def;
@@ -569,10 +608,16 @@
             const gf = document.getElementById('readGenreFilter');
             gf.innerHTML = '<option value="All">All Genres</option>' + genres.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
             const grf = document.getElementById('readGradeFilter');
-            grf.innerHTML = '<option value="All">All Grades</option>' + [7, 8, 9, 10, 11, 12].map(n => `<option value="${n}">Grade ${n}</option>`).join('');
+            grf.innerHTML = '<option value="All">All Grades</option>'
+                + '<option value="junior">Junior High (G7-G9)</option>'
+                + '<option value="senior">Senior High (G10-G12)</option>';
+            const lf = document.getElementById('readLexileFilter');
+            lf.innerHTML = '<option value="All">All Lexile</option>'
+                + LEXILE_BANDS.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
             yf.onchange = renderReading;
             gf.onchange = renderReading;
             grf.onchange = renderReading;
+            lf.onchange = renderReading;
             document.getElementById('readSearchBox').oninput = renderReading;
         }
 
@@ -597,11 +642,13 @@
             const year = document.getElementById('readYearFilter').value;
             const genre = document.getElementById('readGenreFilter').value;
             const grade = document.getElementById('readGradeFilter').value;
+            const lexile = document.getElementById('readLexileFilter').value;
             const kw = document.getElementById('readSearchBox').value.trim().toLowerCase();
             renderedReading = readingBooks.filter(b => {
                 if (year !== 'All' && (b.year || '').trim() !== year) return false;
                 if (genre !== 'All' && normGenre(b.genre) !== genre) return false;
-                if (grade !== 'All' && !gradeMatches(b.grade, +grade)) return false;
+                if (grade !== 'All' && !gradeInBand(b.grade, grade)) return false;
+                if (lexile !== 'All' && !lexileInBand(b.lexile, lexile)) return false;
                 if (kw) {
                     const hay = (b.title + ' ' + b.author + ' ' + b.genre + ' ' + b.comment).toLowerCase();
                     if (!hay.includes(kw)) return false;
@@ -666,43 +713,4 @@
                         <div class="absolute inset-0 flex items-center justify-center p-3 text-center bg-gradient-to-br from-slate-100 to-slate-200"><span class="text-[11px] font-black text-slate-500 leading-tight">${esc(b.title)}</span></div>
                         <img id="modalCover" class="absolute inset-0 w-full h-full object-cover" style="opacity:0;transition:opacity .4s" onload="this.style.opacity=1">
                     </div>
-                    ${b.link ? `<a href="${esc(b.link)}" target="_blank" rel="noopener" class="mt-3 block text-center bg-kcis-blue hover:opacity-90 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl transition">View Online 🔗</a>` : ''}
-                </div>
-                <div>
-                    ${b.genre ? `<span class="text-[10px] font-black text-kcis-blue uppercase tracking-widest">${esc(b.genre)}</span>` : ''}
-                    <h2 class="text-2xl font-black text-slate-800 leading-tight mt-1 mb-1">${esc(b.title)}</h2>
-                    <p class="text-slate-400 font-bold italic mb-4">${esc(b.author)}</p>
-                    <div class="flex flex-wrap gap-2 mb-5 text-[11px] font-bold">
-                        ${b.grade ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">${esc(b.grade)}</span>` : ''}
-                        ${b.lexile ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Lexile ${esc(b.lexile)}</span>` : ''}
-                        ${b.pub ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Published ${esc(b.pub)}</span>` : ''}
-                    </div>
-                    ${comment
-                        ? `<div class="border-l-4 border-kcis-blue pl-4"><p class="text-sm text-slate-600 leading-relaxed" style="white-space:pre-line">${esc(comment)}</p>${b.teacher ? `<p class="text-xs text-kcis-blue font-black italic mt-3">— ${esc(b.teacher)}</p>` : ''}</div>`
-                        : '<p class="text-sm text-slate-400 italic">No commentary yet.</p>'}
-                </div>
-            </div>`;
-            const modal = document.getElementById('bookModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-            loadCover(document.getElementById('modalCover'), b);
-        }
-
-        function closeBook() {
-            const modal = document.getElementById('bookModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.style.overflow = '';
-        }
-
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBook(); });
-
-        // --- 啟動邏輯：確保 Loader 優先呈現 ---
-        window.addEventListener('load', () => {
-            // 使用 setTimeout 確保轉圈圈先在畫面上轉動幾下，再開始背景抓資料
-            init();
-        });
-    </script>
-</body>
-</html>
+                    ${b.link ? `<a href="${esc(b.link)}" target="_blank" rel="noopener" class="mt-3 block text-center bg-kcis-blue hover:opacity-90 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl tran
