@@ -713,4 +713,43 @@
                         <div class="absolute inset-0 flex items-center justify-center p-3 text-center bg-gradient-to-br from-slate-100 to-slate-200"><span class="text-[11px] font-black text-slate-500 leading-tight">${esc(b.title)}</span></div>
                         <img id="modalCover" class="absolute inset-0 w-full h-full object-cover" style="opacity:0;transition:opacity .4s" onload="this.style.opacity=1">
                     </div>
-                    ${b.link ? `<a href="${esc(b.link)}" target="_blank" rel="noopener" class="mt-3 block text-center bg-kcis-blue hover:opacity-90 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl tran
+                    ${b.link ? `<a href="${esc(b.link)}" target="_blank" rel="noopener" class="mt-3 block text-center bg-kcis-blue hover:opacity-90 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl transition">View Online 🔗</a>` : ''}
+                </div>
+                <div>
+                    ${b.genre ? `<span class="text-[10px] font-black text-kcis-blue uppercase tracking-widest">${esc(b.genre)}</span>` : ''}
+                    <h2 class="text-2xl font-black text-slate-800 leading-tight mt-1 mb-1">${esc(b.title)}</h2>
+                    <p class="text-slate-400 font-bold italic mb-4">${esc(b.author)}</p>
+                    <div class="flex flex-wrap gap-2 mb-5 text-[11px] font-bold">
+                        ${b.grade ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">${esc(b.grade)}</span>` : ''}
+                        ${b.lexile ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Lexile ${esc(b.lexile)}</span>` : ''}
+                        ${b.pub ? `<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Published ${esc(b.pub)}</span>` : ''}
+                    </div>
+                    ${comment
+                        ? `<div class="border-l-4 border-kcis-blue pl-4"><p class="text-sm text-slate-600 leading-relaxed" style="white-space:pre-line">${esc(comment)}</p>${b.teacher ? `<p class="text-xs text-kcis-blue font-black italic mt-3">— ${esc(b.teacher)}</p>` : ''}</div>`
+                        : '<p class="text-sm text-slate-400 italic">No commentary yet.</p>'}
+                </div>
+            </div>`;
+            const modal = document.getElementById('bookModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            loadCover(document.getElementById('modalCover'), b);
+        }
+
+        function closeBook() {
+            const modal = document.getElementById('bookModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBook(); });
+
+        // --- 啟動邏輯：確保 Loader 優先呈現 ---
+        window.addEventListener('load', () => {
+            // 使用 setTimeout 確保轉圈圈先在畫面上轉動幾下，再開始背景抓資料
+            init();
+        });
+    </script>
+</body>
+</html>
