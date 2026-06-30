@@ -2,708 +2,767 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>115 學年度課本預訂系統 | KCIS Linkou IPD</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>康橋國際學校林口校區 - 中學部國際處課本查詢系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@1.21.0"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans TC', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; background-color: #f8fafc; }
-        .header-bg { background: linear-gradient(135deg, #0d9488 0%, #064e3b 100%); }
-        .login-bg { background: linear-gradient(135deg, #064e3b 0%, #022c22 100%); background-attachment: fixed; }
-        .animate-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        :root { --kcis-blue: #00A3E0; --semester-purple: #930F84; }
+        .bg-kcis-blue { background-color: var(--kcis-blue); }
+        .text-kcis-blue { color: var(--kcis-blue); }
 
-        /* 嚴格保留學科飾條顏色 */
-        .course-card-math { border-left: 5px solid #ef4444 !important; }
-        .course-card-social { border-left: 5px solid #0ea5e9 !important; }
-        .course-card-science { border-left: 5px solid #10b981 !important; }
-        .course-card-default { border-left: 5px solid #64748b !important; }
+        /* 基礎樣式 */
+        .card { transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        select, input { font-size: 15px !important; color: #1e293b !important; font-weight: 700 !important; }
+        .sticky-header { backdrop-filter: blur(12px); background-color: rgba(255, 255, 255, 0.9); }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #5eead4; border-radius: 10px; }
-        .img-loading { background: linear-gradient(90deg, #f0fdfa 25%, #ccfbf1 50%, #f0fdfa 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-        @keyframes loading { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-        .mesh-pattern { background-image: radial-gradient(#ffffff15 1px, transparent 1px); background-size: 15px 15px; }
+        .course-highlight { background: #E0F2FE; border-left: 4px solid var(--kcis-blue); padding: 6px 10px; margin: 8px 0; border-radius: 0 4px 4px 0; }
+        .tag-semester { background-color: var(--semester-purple) !important; color: white !important; }
+        .tag-wholeyear { background-color: #1e293b !important; color: white !important; }
+        .tab-btn { border-bottom: 3px solid transparent; padding-bottom: 8px; transition: all 0.3s; color: #94a3b8; font-weight: 800; font-size: 13px; }
+        .tab-active { border-bottom: 3px solid var(--kcis-blue); color: var(--kcis-blue); }
 
-        /* 表格斑馬紋優化 - 顯著加深以便手機與電腦閱讀 */
-        .zebra-table tr:nth-child(even) { background-color: rgba(204, 251, 241, 0.45); }
+        .seq-card { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .seq-card.english { border-left-color: #FB923C; }
+        .seq-card.math { border-left-color: #A855F7; }
+        .seq-card.science { border-left-color: #22C55E; }
+        .seq-card.social { border-left-color: #0ea5e9; }
+        .seq-card.chinese { border-left-color: #EC4899; }
+        .seq-card.electives { border-left-color: #64748b; }
+
+        .ap-tag { background: #EF4444; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
+        .hn-tag { background: #F59E0B; color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; font-weight: 900; }
+
+        .filter-chip { padding: 6px 16px; border-radius: 99px; font-size: 12px; font-weight: 800; border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer; color: #64748b; background: white; white-space: nowrap; }
+        .filter-chip.active { background: var(--kcis-blue); color: white; border-color: var(--kcis-blue); }
+        .filter-chip-ap { border-color: #EF4444; color: #EF4444; }
+        .filter-chip-ap.active { background: #EF4444; color: white; border-color: #EF4444; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* --- 暑期書單樣式 --- */
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .cover-wrap { transition: transform .3s ease, box-shadow .3s ease; }
+        .reading-card:hover .cover-wrap { transform: translateY(-5px); box-shadow: 0 18px 28px -10px rgba(0,0,0,0.22); }
+
+        /* --- 全螢幕 Loading 樣式 --- */
+        @keyframes full-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        #full-page-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        .spinner-core {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 163, 224, 0.1);
+            border-top: 4px solid #00A3E0;
+            border-radius: 50%;
+            animation: full-spin 0.8s linear infinite;
+            will-change: transform;
+        }
     </style>
 </head>
-<body class="text-slate-700 text-xs md:text-sm transition-all duration-300">
-    <div id="root"></div>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
 
-    <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, getDocs, collection, setDoc, serverTimestamp, writeBatch, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    <!-- 全螢幕載入遮罩 (優先顯示) -->
+    <div id="full-page-loader">
+        <div class="spinner-core mb-4"></div>
+        <h2 class="text-xl font-black text-slate-800 tracking-tighter mb-1 italic">Connecting to KCIS Database</h2>
+        <p class="text-kcis-blue font-bold tracking-[0.2em] text-[10px] animate-pulse uppercase">Syncing Library... Please wait</p>
+    </div>
 
-        const { useState, useEffect, useMemo, useCallback } = React;
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBx1mAOiqKgFgwZd9AJ33TWFDkMM8YgLc4",
-            authDomain: "textbook-order.firebaseapp.com",
-            projectId: "textbook-order",
-            storageBucket: "textbook-order.firebasestorage.app",
-            messagingSenderId: "789328694108",
-            appId: "1:789328694108:web:00976d2cac7f017a558f99",
-            measurementId: "G-38XPPEVX3P"
-        };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const auth = getAuth(firebaseApp);
-        const db = getFirestore(firebaseApp);
-        const appId = "textbook-order-sy26";
-        const ADMIN_PASSWORD = "8216";
-
-        const ORDER_DEADLINE = new Date("2026-06-03T23:59:59");
-
-        const Icon = ({ name, size = 18, className = "" }) => {
-            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, []);
-            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
-        };
-
-        const CheckSquareIcon = ({ size = 20, color = "currentColor" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <polyline points="9 11 12 14 22 4"></polyline>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-            </svg>
-        );
-
-        const SquareIcon = ({ size = 20, color = "currentColor" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            </svg>
-        );
-
-        const BookCover = ({ isbn, coverUrl, title }) => {
-            const [status, setStatus] = useState('loading');
-            const [useFallback, setUseFallback] = useState(false);
-            const finalSrc = useMemo(() => {
-                if (useFallback) return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null;
-                return coverUrl || (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg` : null);
-            }, [isbn, coverUrl, useFallback]);
-            useEffect(() => { setStatus('loading'); setUseFallback(false); }, [coverUrl, isbn]);
-            if (!finalSrc || (status === 'error' && useFallback)) {
-                return (
-                    <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center text-slate-300">
-                        <span className="text-[8px] font-black uppercase opacity-30">No Cover</span>
-                    </div>
-                );
-            }
-            return (
-                <div className={`w-full h-full ${status === 'loading' ? 'img-loading' : 'bg-white'}`}>
-                    <img src={finalSrc} alt={title} onLoad={() => setStatus('success')}
-                        onError={() => { if (!useFallback && isbn) { setUseFallback(true); } else { setStatus('error'); } }}
-                        className={`w-full h-full object-cover transition-opacity duration-300 ${status === 'success' ? 'opacity-100' : 'opacity-0'}`} />
-                </div>
-            );
-        };
-
-        function App() {
-            const [step, setStep] = useState('login');
-            const [adminTab, setAdminTab] = useState('summary');
-            const [studentId, setStudentId] = useState('');
-            const [verifyCode, setVerifyCode] = useState('');
-            const [isLoading, setIsLoading] = useState(false);
-            const [error, setError] = useState('');
-            const [studentData, setStudentData] = useState(null);
-            const [library, setLibrary] = useState({});
-            const [selections, setSelections] = useState({});
-            const [allOrders, setAllOrders] = useState([]);
-            const [allEnrollment, setAllEnrollment] = useState([]);
-            const [bookStats, setBookStats] = useState({});
-            const [importType, setImportType] = useState('enrollment');
-            const [csvInput, setCsvInput] = useState('');
-
-            const isExpired = new Date() > ORDER_DEADLINE;
-
-            useEffect(() => {
-                signInAnonymously(auth).catch(err => console.error("Mount anonymous auth failed:", err));
-                const unsubscribe = onAuthStateChanged(auth, (user) => {});
-                return () => unsubscribe();
-            }, []);
-
-            const fetchAdminData = async () => {
-                setIsLoading(true);
-                setError('');
-                try {
-                    const [libSnap, enrollSnap, orderSnap] = await Promise.all([
-                        getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'library')),
-                        getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'enrollment')),
-                        getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'orders'))
-                    ]);
-                    const libData = {}; libSnap.forEach(d => libData[d.id] = d.data());
-                    setLibrary(libData);
-
-                    const enrollMap = {}; const enrollList = [];
-                    enrollSnap.forEach(d => {
-                        const data = d.data(); const sid = String(d.id || data.studentId || "").trim().toUpperCase();
-                        if (!sid) return;
-                        enrollList.push({ ...data, id: sid, studentId: sid });
-                        enrollMap[sid] = data.courses || [];
-                    });
-                    setAllEnrollment(enrollList);
-
-                    const ordersList = []; const statsMap = {};
-                    orderSnap.forEach((doc) => {
-                        const data = doc.data();
-                        const sid = String(data.studentId || doc.id).trim().toUpperCase();
-                        if (!enrollMap[sid]) return;
-
-                        const currentCourses = enrollMap[sid];
-                        const filteredSelections = {};
-                        Object.entries(data.selections || {}).forEach(([courseCode, books]) => {
-                            if (currentCourses.includes(courseCode)) {
-                                filteredSelections[courseCode] = books;
-                                if (Array.isArray(books)) {
-                                    books.forEach(t => {
-                                        if (t && !t.includes("Do not order") && !t.includes("不訂購") && !t.includes("No Specific Textbook Required")) {
-                                            if (!statsMap[t]) statsMap[t] = { count: 0, students: [] };
-                                            statsMap[t].count += 1;
-                                            statsMap[t].students.push(`[${data.className || 'Unknown'}] ${data.cName || 'Student'} (${sid})`);
-                                        }
-                                    });
-                                }
-                            }
-                        });
-                        ordersList.push({ ...data, studentId: sid, selections: filteredSelections });
-                    });
-                    setAllOrders(ordersList); setBookStats(statsMap); setStep('admin');
-                } catch (err) { setError("數據載入失敗。"); }
-                finally { setIsLoading(false); }
-            };
-
-            const clearData = async (collectionName) => {
-                if (!confirm(`警告：確定要清空雲端數據嗎？此操作無法還原。`)) return;
-                setIsLoading(true);
-                try {
-                    const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', collectionName));
-                    const batch = writeBatch(db);
-                    snap.forEach(d => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', collectionName, d.id)));
-                    await batch.commit();
-                    alert("數據已清空。");
-                    await fetchAdminData();
-                } catch (err) {
-                    alert("清空失敗");
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            const escapeCSV = (val) => {
-                if (val === null || val === undefined) return '""';
-                const str = String(val);
-                if (str.includes('"') || str.includes(',') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
-                return str;
-            };
-
-            const exportToCSV = (type) => {
-                const _now = new Date();
-                const _pad = n => String(n).padStart(2,'0');
-                const _datePrefix = `${_pad(_now.getMonth()+1)}${_pad(_now.getDate())}_${_pad(_now.getHours())}${_pad(_now.getMinutes())}_`;
-                let headers, rows, filename;
-                if (type === 'orders') {
-                    headers = ["學號", "班級", "座號", "中文姓名", "英文姓名", "訂購內容清單", "時間"];
-                    rows = allOrders.map(o => {
-                        const validBooks = Object.values(o.selections || {}).flat().filter(b => b && !b.includes('不訂購') && !b.includes('No Specific Textbook Required'));
-                        const enrollInfo = allEnrollment.find(e => e.studentId === o.studentId) || {};
-                        return [o.studentId, o.className, enrollInfo.seatNumber || '', o.cName, o.name, validBooks.join('、'), o.updatedAt?.seconds ? new Date(o.updatedAt.seconds * 1000).toLocaleString() : ''];
-                    });
-                    filename = _datePrefix + "學生訂書總表.csv";
-                } else if (type === 'books') {
-                    headers = ["書名", "總量", "學生名單"];
-                    rows = Object.entries(bookStats).sort((a,b)=>b[1].count-a[1].count).map(([t,d]) => [t, d.count, d.students.join('\n')]);
-                    filename = _datePrefix + "採購發放清單.csv";
-                } else if (type === 'pending') {
-                    headers = ["學號", "班級", "座號", "中文姓名", "英文姓名"];
-                    rows = getPendingStudents().map(e => [e.studentId, e.className, e.seatNumber || '', e.cName, e.name]);
-                    filename = _datePrefix + "未填寫催報名單.csv";
-                } else if (type === 'flat') {
-                    headers = ["學號", "班級", "座號", "中文姓名", "英文姓名", "學科", "分級", "ISBN", "書名"];
-                    rows = [];
-                    allOrders.forEach(order => {
-                        Object.entries(order.selections || {}).forEach(([courseCode, books]) => {
-                            if (Array.isArray(books)) {
-                                books.forEach(bookTitle => {
-                                    if (bookTitle && !bookTitle.includes('不訂購') && !bookTitle.includes('No Specific Textbook Required')) {
-                                        const libInfo = library[courseCode] || library[courseCode.toUpperCase()] || {};
-                                        const enrollInfo = allEnrollment.find(e => e.studentId === order.studentId) || {};
-                                        const bookDetail = (libInfo.books || []).find(b => b.title === bookTitle) || {};
-                                        rows.push([order.studentId, order.className, enrollInfo.seatNumber || '', order.cName, order.name, libInfo.subject || '', libInfo.level || '', bookDetail.isbn || '', bookTitle]);
-                                    }
-                                });
-                            }
-                        });
-                    });
-                    filename = _datePrefix + "訂購明細_一書一列.csv";
-                }
-                const csvContent = "﻿" + [headers, ...rows].map(row => row.map(escapeCSV).join(",")).join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", filename);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-
-            const handleLogin = async (e) => {
-                if (e) e.preventDefault();
-                if (isLoading) return;
-                setIsLoading(true); setError('');
-                try {
-                    if (!auth.currentUser) await signInAnonymously(auth);
-
-                    const sid = String(studentId || "").trim().toUpperCase();
-                    const inputCode = String(verifyCode || "").trim();
-
-                    if (!sid) {
-                        throw new Error("請輸入學號");
-                    }
-
-                    // 1. 優先攔截並處理管理員登入與驗證
-                    if (sid === 'ADMIN') {
-                        if (inputCode === ADMIN_PASSWORD) {
-                            await fetchAdminData();
-                            return;
-                        } else {
-                            throw new Error("管理員驗證密碼錯誤");
-                        }
-                    }
-
-                    // 2. 學生一般登入流程
-                    const enrollSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'enrollment', sid));
-                    if (!enrollSnap.exists()) throw new Error("查無此學號或資料未同步");
-
-                    const data = enrollSnap.data();
-                    if (!data) throw new Error("學生資料格式錯誤，請聯絡管理員");
-
-                    // 驗證碼安全防護比對（支援空值、字串、數值相容轉換）
-                    const dbCode = data.verifyCode !== undefined && data.verifyCode !== null ? String(data.verifyCode).trim() : "";
-                    if (!dbCode || dbCode !== inputCode) {
-                        throw new Error("學生驗證密碼錯誤");
-                    }
-
-                    const libSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'library'));
-                    const libData = {}; libSnap.forEach(d => libData[d.id] = d.data());
-
-                    const orderSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', sid));
-                    const defaultSelections = {};
-                    (data.courses || []).forEach(c => { defaultSelections[c] = ["Do not order 不訂購"]; });
-                    setSelections(orderSnap.exists() ? (orderSnap.data().selections || {}) : defaultSelections);
-                    setStudentData(data); setLibrary(libData); setStep('form');
-                    window.scrollTo(0,0);
-                } catch (err) {
-                    console.error("Login Error Caught:", err);
-                    // 核心修正：將所有非典型 Error 物件（如 FirebaseError、Null等）強制安全轉換為純字串，絕不引發 React 渲染崩潰
-                    const errMsg = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
-                    setError(errMsg || "登入失敗");
-                }
-                finally { setIsLoading(false); }
-            };
-
-            const processImport = async () => {
-                if (!csvInput.trim() || isLoading) return;
-                setIsLoading(true);
-                try {
-                    const parseExcelText = (text, delimiter = '\t') => {
-                        const result = []; let row = []; let field = ''; let inQuotes = false;
-                        for (let i = 0; i < text.length; i++) {
-                            const char = text[i]; const nextChar = text[i + 1];
-                            if (inQuotes) {
-                                if (char === '"' && nextChar === '"') { field += '"'; i++; }
-                                else if (char === '"') { inQuotes = false; }
-                                else { field += char; }
-                            } else {
-                                if (char === '"') { inQuotes = true; }
-                                else if (char === delimiter) { row.push(field.trim()); field = ''; }
-                                else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
-                                    row.push(field.trim()); result.push(row); row = []; field = '';
-                                    if (char === '\r') i++;
-                                } else { field += char; }
-                            }
-                        }
-                        if (field || row.length > 0) { row.push(field.trim()); result.push(row); }
-                        return result;
-                    };
-                    const dataRows = parseExcelText(csvInput.trim(), '\t');
-                    const batch = writeBatch(db); let importedCount = 0;
-                    if (importType === 'enrollment') {
-                        dataRows.forEach((row, idx) => {
-                            if (idx === 0 && (row[0]?.includes("學號") || row[0]?.toUpperCase().includes("ID"))) return;
-                            const sid = String(row[0] || "").toUpperCase(); if (!sid) return;
-                            batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'enrollment', sid), {
-                                studentId: sid, className: row[1] || "", seatNumber: row[2] || "", cName: row[3] || "", name: row[4] || "",
-                                verifyCode: row[5] || "", courses: row[6] ? row[6].split(',').map(c => c.trim().toUpperCase()) : [],
-                                grade: (row[1] || "").match(/\d+/)?.[0] || ""
-                            });
-                            importedCount++;
-                        });
-                    } else {
-                        const libMap = {};
-                        dataRows.forEach((row, idx) => {
-                            if (idx === 0 && (row[0]?.includes("課程代碼") || row[1]?.toUpperCase().includes("SUBJECT"))) return;
-                            const courseId = String(row[0] || "").toUpperCase(); if (!courseId) return;
-                            if (!libMap[courseId]) libMap[courseId] = { courseId, subject: row[1], grade: row[2], courseName: row[3], publisher: row[4], level: row[7], books: [] };
-                            libMap[courseId].books.push({ title: row[5], year: row[6], isbn: row[8], price: parseInt(String(row[9] || "0").replace(/[^0-9]/g, '')) || 0, coverUrl: row[10] });
-                            importedCount++;
-                        });
-                        Object.entries(libMap).forEach(([id, data]) => { batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'library', id), data); });
-                    }
-                    await batch.commit(); alert(`同步成功！共處理 ${importedCount} 筆資料。`); setCsvInput(''); fetchAdminData();
-                } catch (err) { alert("同步失敗：" + err.message); }
-                finally { setIsLoading(false); }
-            };
-
-            const handleSubmit = async (e) => {
-                if (e) e.preventDefault();
-                if (isLoading || !studentData || (isExpired && step !== 'admin_edit')) return;
-                setIsLoading(true);
-                try {
-                    const finalS = {};
-                    (studentData.courses || []).forEach(c => {
-                        const lib = library[c];
-                        const compulsoryBooks = (lib?.books || []).filter(b => b.title === "School-printed Course Pack").map(b => b.title);
-                        const selected = (selections[c] || []).filter(t => t !== "Do not order 不訂購" && t !== "No Specific Textbook Required");
-                        const merged = [...new Set([...compulsoryBooks, ...selected])];
-                        finalS[c] = merged.length > 0 ? merged : ["Do not order 不訂購"];
-                    });
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', String(studentData.studentId).trim().toUpperCase()), {
-                        studentId: String(studentData.studentId).trim().toUpperCase(), name: studentData.name, cName: studentData.cName,
-                        grade: studentData.grade, className: studentData.className, seatNumber: studentData.seatNumber || "",
-                        selections: finalS, updatedAt: serverTimestamp()
-                    });
-                    if (step === 'admin_edit') { alert("訂單已更新"); fetchAdminData(); } else { setStep('success'); }
-                } catch (err) { setError("提交失敗"); }
-                finally { setIsLoading(false); }
-            };
-
-            const openAdminEdit = async (sid) => {
-                setIsLoading(true);
-                try {
-                    const enrollSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'enrollment', sid));
-                    const orderSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', sid));
-                    setStudentData(enrollSnap.data()); setSelections(orderSnap.exists() ? orderSnap.data().selections : {}); setStep('admin_edit');
-                } catch (e) { alert("載入失敗"); }
-                finally { setIsLoading(false); }
-            };
-
-            // 安全獲取年級進度防護
-            const getGradeStats = () => {
-                const enrollList = allEnrollment || [];
-                const orderList = allOrders || [];
-                const grades = [...new Set(enrollList.map(e => e?.grade))].filter(Boolean).sort();
-                return grades.map(g => {
-                    const total = enrollList.filter(e => e && e.grade === g).length;
-                    const finished = orderList.filter(o => o && o.grade === g).length;
-                    return { grade: g, total, finished, percent: total > 0 ? Math.round((finished/total)*100) : 0 };
-                });
-            };
-
-            // 安全獲取催報名單防護
-            const getPendingStudents = () => {
-                const enrollList = allEnrollment || [];
-                const orderList = allOrders || [];
-                const finishedIds = new Set(orderList.map(o => o?.studentId).filter(Boolean));
-                return enrollList
-                    .filter(e => e && e.studentId && !finishedIds.has(e.studentId))
-                    .sort((a, b) => String(a?.className || "").localeCompare(String(b?.className || "")));
-            };
-
-            const getSubjectStyles = (subject) => {
-                const sub = (subject || "").toUpperCase();
-                if (sub.includes("MA")) return { text: 'text-rose-600', class: 'course-card-math', label: 'Math' };
-                if (sub.includes("SS") || sub.includes("SOCIAL")) return { text: 'text-sky-600', class: 'course-card-social', label: 'Social Studies' };
-                if (sub.includes("SC") || sub.includes("SCIENCE")) return { text: 'text-emerald-600', class: 'course-card-science', label: 'Science' };
-                return { text: 'text-slate-600', class: 'course-card-default', label: subject || "Course" };
-            };
-
-            return (
-                <div className={`min-h-screen flex flex-col items-center py-4 md:py-8 px-3 md:px-4 transition-all duration-700 ${step === 'login' ? 'login-bg mesh-pattern' : 'bg-[#f8fafc]'}`}>
-                    <div className={`w-full ${step === 'login' ? 'max-w-md' : 'max-w-5xl'} bg-white rounded-[1.5rem] shadow-[0_15px_60px_rgba(0,0,0,0.15)] overflow-hidden border border-slate-100 animate-in`}>
-                        <div className="header-bg px-5 py-8 md:py-10 text-white text-center shadow-inner relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <h1 className="text-base md:text-lg font-black uppercase tracking-tight relative z-10 drop-shadow">SY26-27 TEXTBOOK ORDERING SYSTEM</h1>
-                            <p className="text-teal-50 text-base md:text-xl font-bold tracking-[0.2em] mt-3 uppercase relative z-10 drop-shadow-md">115學年課本預訂系統</p>
+    <!-- 主網頁內容 -->
+    <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <img src="school-logo.jpg" alt="KCIS Logo" class="h-8 w-auto">
+                    <div class="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-kcis-blue text-white px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest shrink-0">SY26-27</div>
+                            <h1 class="text-[15px] sm:text-base font-black text-slate-800 tracking-tight leading-tight">中學部國際處課本查詢入口網站</h1>
                         </div>
-
-                        {step === 'login' && (
-                            <div className="p-8 md:p-12 space-y-6 text-center text-slate-900 bg-white">
-                                <div className="space-y-1">
-                                    <h2 className="text-xl font-black text-teal-700 tracking-tight">KCIS Student Portal</h2>
-                                    <p className="text-slate-400 font-bold text-[9px] tracking-widest uppercase">Portal Authentication</p>
-                                </div>
-                                <form onSubmit={(e) => { handleLogin(e).catch(err => { setError(String(err?.message || err || "登入失敗")); setIsLoading(false); }); }} className="space-y-3">
-                                    <input type="text" required value={studentId} onChange={(e) => { setStudentId(e.target.value); if(error) setError(''); }}
-                                        autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck="false"
-                                        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center font-normal text-base focus:border-teal-500 uppercase placeholder:font-normal placeholder:text-slate-300 shadow-inner" placeholder="學號 STUDENT ID"/>
-                                    <input type="password" required value={verifyCode} onChange={(e) => { setVerifyCode(e.target.value); if(error) setError(''); }}
-                                        autoComplete="off" inputMode="numeric"
-                                        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center font-normal text-base focus:border-teal-500 placeholder:font-normal placeholder:text-slate-300 shadow-inner" placeholder="生日 4 碼 (MMDD)"/>
-                                    {error && <div className="text-rose-500 text-[11px] font-medium bg-rose-50 p-2.5 rounded-lg border border-rose-100">{error}</div>}
-                                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-teal-600 text-white font-black rounded-xl shadow-lg hover:bg-teal-700 active:scale-95 transition-all text-base mt-2 uppercase tracking-widest flex items-center justify-center gap-2">
-                                        {isLoading ? <svg className="animate-spin" width={20} height={20} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 22 6.477 22 12h-4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> : "Login"}
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {(step === 'form' || step === 'admin_edit') && studentData && (
-                            <div className="p-4 md:p-8 space-y-6 text-slate-900 animate-in bg-white">
-                                <div className="bg-white p-4 rounded-xl border border-slate-50 flex flex-col md:flex-row items-center justify-between shadow-sm ring-4 ring-teal-50/30 gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center text-white shadow-md rotate-2 shrink-0"><Icon name="user" size={20} /></div>
-                                        <div>
-                                            <h2 className="text-base md:text-lg font-black tracking-tight">{studentData.name} {studentData.cName}</h2>
-                                            <p className="text-teal-600 text-[11px] md:text-xs font-bold uppercase tracking-widest">{studentData.className} | Seat {studentData.seatNumber}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {step === 'admin_edit' ? (
-                                            <button onClick={() => setStep('admin')} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase tracking-widest">Back to Admin</button>
-                                        ) : (
-                                            <button onClick={() => setStep('login')} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase tracking-widest">Logout</button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {isExpired && step !== 'admin_edit' && (
-                                    <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-700">
-                                        <Icon name="alert-triangle" size={20} />
-                                        <p className="text-xs md:text-sm font-bold">預訂已截止 ({ORDER_DEADLINE.toLocaleString()})，目前僅供查詢。</p>
-                                    </div>
-                                )}
-
-                                <form onSubmit={handleSubmit} className="space-y-6">
-                                    {(studentData.courses || []).map(code => {
-                                        const lib = library[code] || library[code.toUpperCase()];
-                                        if (!lib) return null;
-                                        const styles = getSubjectStyles(lib.subject);
-                                        const currentSelections = selections[code] || [];
-                                        const isNoOrder = currentSelections.includes("Do not order 不訂購");
-
-                                        return (
-                                            <div key={code} className={`bg-white rounded-2xl border-2 border-slate-50 shadow-sm overflow-hidden transition-all hover:shadow-md ${styles.class}`}>
-                                                <div className="p-4 md:p-6 border-b border-slate-50 flex justify-between items-start gap-4">
-                                                    <div>
-                                                        <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] ${styles.text}`}>{styles.label}</span>
-                                                        <h3 className="text-sm md:text-lg font-black text-slate-800 leading-tight mt-1">{lib.courseName}</h3>
-                                                        <p className="text-[10px] md:text-xs text-slate-400 font-medium mt-1 uppercase tracking-wider">{code} • {lib.publisher} • {lib.level}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="p-3 md:p-6 bg-slate-50/30 space-y-3">
-                                                    {(lib.books || []).map((book, idx) => {
-                                                        const isSelected = currentSelections.includes(book.title);
-                                                        const isCompulsory = book.title === "School-printed Course Pack";
-                                                        const isInfoOnly = book.title === "No Specific Textbook Required";
-
-                                                        if (isInfoOnly) {
-                                                            return (
-                                                                <div key={idx} className="p-4 bg-white/60 border-2 border-dashed border-slate-200 rounded-xl text-center">
-                                                                    <p className="text-slate-400 font-bold text-[11px] md:text-xs italic">No Specific Textbook Required.</p>
-                                                                </div>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <div key={idx}
-                                                                onClick={() => {
-                                                                    if ((isExpired && step !== 'admin_edit') || isCompulsory) return;
-                                                                    setSelections(prev => {
-                                                                        const prevList = prev[code] || [];
-                                                                        const newList = prevList.filter(t => t !== "Do not order 不訂購" && t !== "No Specific Textbook Required");
-                                                                        if (newList.includes(book.title)) {
-                                                                            return { ...prev, [code]: newList.filter(t => t !== book.title) };
-                                                                        } else {
-                                                                            return { ...prev, [code]: [...newList, book.title] };
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className={`group relative p-3 md:p-4 rounded-2xl border-2 transition-all cursor-pointer flex gap-4 items-center ${isSelected || isCompulsory ? 'bg-white border-teal-500 shadow-md ring-4 ring-teal-500/5' : 'bg-white border-white hover:border-teal-200 hover:shadow-sm'}`}>
-                                                                <div className="shrink-0 w-16 h-[88px] md:w-20 md:h-28 rounded border border-slate-200 overflow-hidden bg-slate-50 shadow-sm">
-                                                                    <BookCover isbn={book.isbn} coverUrl={book.coverUrl} title={book.title} />
-                                                                </div>
-                                                                <div className="flex-1 flex justify-between items-center gap-4">
-                                                                    <div className="space-y-1">
-                                                                        <div className="flex items-center gap-2">
-                                                                            {isCompulsory ? <CheckSquareIcon size={18} color="#0d9488" /> : isSelected ? <CheckSquareIcon size={18} color="#0d9488" /> : <SquareIcon size={18} color="#cbd5e1" />}
-                                                                            <span className={`text-xs md:text-sm font-black leading-tight ${isSelected || isCompulsory ? 'text-teal-900' : 'text-slate-600'}`}>{book.title}</span>
-                                                                            {isCompulsory && <span className="bg-teal-100 text-teal-700 text-[8px] md:text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest">Required</span>}
-                                                                        </div>
-                                                                        {book.isbn && <span className="text-[8px] md:text-[10px] text-slate-400 block font-mono">ISBN: {book.isbn}</span>}
-                                                                    </div>
-                                                                    <div className="text-right shrink-0">
-                                                                        {book.price > 0 ? (<div className="flex flex-col items-end"><div className="text-teal-600 text-[11px] md:text-base font-black font-mono leading-none">${book.price}</div><div className="text-[7px] md:text-[8px] text-slate-300 font-bold uppercase mt-1">Ref.</div></div>) : (<div className="flex flex-col items-end"><div className="text-teal-700 text-[10px] md:text-[12px] font-black uppercase bg-teal-100 px-2.5 py-1 rounded shadow-sm border border-teal-200 whitespace-nowrap">New Version</div><div className="text-[10px] md:text-[12px] text-slate-400 font-bold italic mt-1 whitespace-nowrap">TBA (July)</div></div>)}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    <div onClick={() => { if (isExpired && step !== 'admin_edit') return; const hasCompulsory = (lib.books || []).some(b => b.title === "School-printed Course Pack"); if (hasCompulsory) return; setSelections(prev => ({ ...prev, [code]: ["Do not order 不訂購"] })) }}
-                                                        className={`p-3 border rounded-xl text-center font-bold italic text-[11px] md:text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${(lib.books || []).some(b => b.title === "School-printed Course Pack") ? 'bg-slate-50 text-slate-200 cursor-not-allowed opacity-50' : isNoOrder ? 'bg-slate-800 text-white shadow-md' : 'bg-white border-slate-100 text-slate-300 hover:border-teal-200'}`}>
-                                                        {isNoOrder ? <CheckSquareIcon size={16} color="white" /> : <SquareIcon size={16} color="#cbd5e1" />} 不訂購 Do not order
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-teal-600 text-white font-black rounded-xl shadow-lg text-sm md:text-lg uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2">
-                                        {isLoading ? <svg className="animate-spin" width={20} height={20} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 22 6.477 22 12h-4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> : "Confirm Order (確認訂購)"}
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {step === 'admin' && (
-                            <div className="p-4 md:p-10 space-y-8 text-slate-900 bg-white">
-                                <div className="flex justify-between items-center border-b pb-6">
-                                    <h2 className="text-lg md:text-2xl font-medium uppercase text-teal-700 leading-none tracking-tight">Admin Dashboard</h2>
-                                    <button onClick={() => setStep('login')} className="px-5 py-2 bg-slate-50 rounded-lg text-sm font-medium border-2 border-slate-100 hover:text-teal-600">Logout</button>
-                                </div>
-                                <div className="flex flex-wrap gap-2.5 mb-2">
-                                    {['summary', 'all_orders', 'pending', 'import'].map(tab => (
-                                        <button key={tab} onClick={() => setAdminTab(tab)} className={`px-6 py-2.5 text-sm font-medium rounded-xl uppercase tracking-wider transition-all shadow-sm ${adminTab === tab ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{tab.replace('_', ' ')}</button>
-                                    ))}
-                                </div>
-
-                                {adminTab === 'summary' && (
-                                    <div className="space-y-8">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                            {getGradeStats().map(s => (
-                                                <div key={s.grade} className="bg-slate-50 p-5 rounded-2xl border-2 border-slate-100 shadow-sm">
-                                                    <div className="flex justify-between items-end mb-2"><span className="text-slate-400 font-medium uppercase text-[11px] tracking-widest">Grade {s.grade}</span><span className="text-teal-600 font-semibold text-2xl">{s.percent}%</span></div>
-                                                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden mb-2"><div className="bg-teal-600 h-full transition-all duration-1000" style={{ width: `${s.percent}%` }}></div></div>
-                                                    <p className="text-slate-500 font-normal text-[11px] uppercase opacity-60">Filled: {s.finished} / {s.total}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="bg-white border-2 border-slate-100 rounded-[1.5rem] overflow-hidden shadow-sm">
-                                            <div className="bg-slate-50 p-6 border-b flex flex-wrap justify-between items-center gap-4">
-                                                <span className="text-teal-800 text-sm md:text-lg font-medium uppercase tracking-tight">採購總量統計</span>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {['orders', 'flat', 'books'].map(t => (
-                                                        <button key={t} onClick={() => exportToCSV(t)} className="text-xs md:text-sm font-medium uppercase px-4 py-2 bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:border-teal-500 hover:text-teal-600 transition-all">
-                                                            {t === 'orders' ? '📘 總表' : t === 'flat' ? '📄 明細' : '📦 發書'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <table className="w-full text-left text-sm md:text-base"><tbody className="divide-y-2 divide-slate-50">
-                                                {Object.entries(bookStats || {}).sort((a, b) => {
-                                                    const countA = a[1]?.count || 0;
-                                                    const countB = b[1]?.count || 0;
-                                                    return countB - countA;
-                                                }).map(([title, data]) => (
-                                                    <tr key={title} className="hover:bg-teal-50/50 transition-colors">
-                                                        <td className="p-5 text-slate-700 leading-snug font-medium">{title}</td>
-                                                        <td className="p-5 text-right"><span className="bg-teal-600 text-white px-4 py-1.5 rounded-2xl text-sm md:text-base font-mono shadow-sm font-semibold">{data?.count || 0}</span></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody></table>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {adminTab === 'all_orders' && (
-                                    <div className="overflow-x-auto rounded-2xl border-2 border-slate-100 shadow-sm">
-                                        <table className="w-full text-left text-sm md:text-base zebra-table">
-                                            <thead className="bg-slate-50 border-b-2 text-teal-800"><tr><th className="p-5 font-semibold tracking-wider">學號 SID</th><th className="p-5 font-semibold">班級 Class</th><th className="p-5 font-semibold">姓名 Name</th><th className="p-5 text-center font-semibold">項目</th><th className="p-5 font-semibold text-right">最後更新</th></tr></thead>
-                                            <tbody className="divide-y-2 divide-slate-50">
-                                                {[...(allOrders || [])].sort((a, b) => String(a?.className || "").localeCompare(String(b?.className || ""))).map(o => {
-                                                    if (!o) return null;
-                                                    const selectionsMap = o.selections || {};
-                                                    const validCount = Object.values(selectionsMap).flat().filter(b => b && !b.includes('不訂購') && !b.includes('No Specific Textbook Required')).length;
-                                                    return (
-                                                        <tr key={o.studentId} className="hover:bg-teal-100/30 transition-colors odd:bg-white even:bg-teal-50">
-                                                            <td className="p-5"><button onClick={()=>openAdminEdit(o.studentId)} className="text-teal-600 font-medium hover:underline">{o.studentId}</button></td>
-                                                            <td className="p-5">{o.className || '-'}</td><td className="p-5 font-medium text-slate-800">{o.cName || '-'}</td>
-                                                            <td className="p-5 text-center font-mono text-teal-700">{validCount}</td>
-                                                            <td className="p-5 text-slate-400 text-xs font-mono text-right">{o.updatedAt?.seconds ? new Date(o.updatedAt.seconds * 1000).toLocaleString() : '-'}</td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-
-                                {adminTab === 'pending' && (
-                                    <div className="space-y-5">
-                                        <div className="bg-teal-50 p-6 rounded-2xl flex justify-between items-center border-2 border-teal-100 shadow-inner"><h3 className="text-teal-900 font-semibold uppercase text-base md:text-xl tracking-widest">未填寫：{getPendingStudents().length} 人</h3><button onClick={() => exportToCSV('pending')} className="bg-teal-600 text-white px-6 py-2.5 rounded-xl font-medium uppercase shadow-lg text-sm tracking-widest hover:bg-teal-700">匯出 CSV</button></div>
-                                        <div className="overflow-x-auto rounded-2xl border-2 border-slate-100">
-                                            <table className="w-full text-left text-sm md:text-base zebra-table">
-                                                <thead className="bg-slate-50 text-teal-800 border-b-2"><tr><th className="p-5 font-semibold">班級 Class</th><th className="p-5 font-semibold">座號 Seat</th><th className="p-5 font-semibold">學號 SID</th><th className="p-5 font-semibold">姓名 Name</th></tr></thead>
-                                                <tbody className="divide-y-2 divide-slate-50">
-                                                    {getPendingStudents().map(s => {
-                                                        if (!s) return null;
-                                                        return (
-                                                            <tr key={s.studentId} className="hover:bg-teal-100/30 transition-colors odd:bg-white even:bg-teal-50">
-                                                                <td className="p-5 text-teal-700 font-medium">{s.className || '-'}</td><td className="p-5">{s.seatNumber || '-'}</td>
-                                                                <td className="p-5 font-mono text-slate-500">{s.studentId}</td><td className="p-5 font-medium">{s.cName || '-'}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {adminTab === 'import' && (
-                                    <div className="space-y-6 animate-in">
-                                        <div className="flex gap-3">{['orders','enrollment','library'].map(c => (<button key={c} onClick={() => clearData(c)} className="flex-1 py-3.5 bg-rose-50 text-rose-600 rounded-xl font-medium text-sm border-2 border-rose-100 uppercase tracking-widest hover:bg-rose-100 transition-all shadow-sm">Clear {c}</button>))}</div>
-                                        <div className="flex gap-4"><button onClick={() => setImportType('enrollment')} className={`flex-1 py-6 rounded-[2rem] font-medium border-4 transition-all text-sm md:text-xl shadow-md ${importType === 'enrollment' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-100 text-slate-400'}`}>匯入學生 Enrollment</button><button onClick={() => setImportType('library')} className={`flex-1 py-6 rounded-[2rem] font-medium border-4 transition-all text-sm md:text-xl shadow-md ${importType === 'library' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-100 text-slate-400'}`}>匯入書庫 Library</button></div>
-                                        <textarea value={csvInput} onChange={(e) => setCsvInput(e.target.value)} className="w-full h-40 p-6 bg-slate-50 border-2 border-slate-200 rounded-3xl text-sm md:text-base font-mono outline-none shadow-inner custom-scrollbar" placeholder="Paste data here..."/>
-                                        <button onClick={processImport} disabled={isLoading} className="w-full py-5 bg-slate-800 text-white font-medium rounded-3xl uppercase tracking-[0.5em] shadow-xl text-lg hover:bg-black transition-all flex items-center justify-center gap-2">
-                                            {isLoading && <svg className="animate-spin" width={20} height={20} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 22 6.477 22 12h-4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>} Sync to Cloud
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {step === 'success' && (
-                            <div className="p-16 text-center space-y-8 bg-white animate-in">
-                                <div className="mx-auto w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-500 shadow-xl"><Icon name="check" size={40} /></div>
-                                <h2 className="text-2xl md:text-4xl font-black uppercase text-teal-700 tracking-tight">Order Success!</h2>
-                                <div className="space-y-4 text-sm md:text-base leading-relaxed">
-                                    <p className="text-slate-500 font-bold">訂單已成功送出，2026/6/3 截止日前可隨時登入修改。</p>
-                                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl max-w-md mx-auto animate-in">
-                                        <p className="text-rose-600 font-bold text-xs md:text-sm">
-                                            重要提醒：<br/>
-                                            課本一經訂購，恕不接受退書或取消，請務必審慎填寫。
-                                        </p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setStep('login')} className="px-12 py-4 bg-teal-600 text-white font-black rounded-xl shadow-lg uppercase text-xs tracking-widest hover:scale-105 transition-all">Return Home</button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="mt-10 text-center space-y-4 pb-12 w-full max-w-xl animate-in px-4">
-                        <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 px-8 py-3 bg-slate-900 text-white rounded-2xl shadow-xl border border-slate-800">
-                            <span className="text-[10px] md:text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap">KCIS Linkou IPD | Textbook Ordering</span>
-                            <span className="hidden md:block w-1.5 h-1.5 bg-teal-500 rounded-full shadow-[0_0_8px_#14b8a6]"></span>
-                            <span className="text-[10px] md:text-[11px] font-bold text-orange-400 whitespace-nowrap tracking-widest">© 2026-2027</span>
-                        </div>
-                        <div className="flex flex-col items-center opacity-70">
-                            <div className="text-[9px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Academic Affairs Department</div>
-                            <div className="text-[8px] md:text-[9px] text-teal-900 font-black uppercase tracking-[0.4em]">Designed by Cindy Lin</div>
-                        </div>
+                        <p class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">IPD Textbook & Course Sequence Portal</p>
                     </div>
                 </div>
-            );
+                <nav class="flex gap-6 sm:gap-8">
+                    <button id="btnTextbook" onclick="switchMode('textbook')" class="tab-btn tab-active uppercase text-[11px] sm:text-xs">📖 Textbook List</button>
+                    <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-[11px] sm:text-xs">🗂️ Course Sequence</button>
+                    <button id="btnReading" onclick="switchMode('reading')" class="tab-btn uppercase text-[11px] sm:text-xs">📚 Reading List</button>
+                </nav>
+            </div>
+
+            <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
+                <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
+                <select id="subjectFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
+                <select id="levelFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
+                <input type="text" id="searchBox" placeholder="Global Search ISBN..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold">
+            </div>
+
+            <div id="filterSequence" class="hidden py-2">
+                <div class="flex gap-2 px-2 overflow-x-auto no-scrollbar justify-start lg:justify-center pb-2" id="seqSubjectBtns" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                    <div class="filter-chip active" onclick="filterSeq('All', this)">All Subjects</div>
+                    <div class="filter-chip filter-chip-ap" onclick="filterSeq('AP_ONLY', this)">AP Only</div>
+                    <div class="filter-chip" onclick="filterSeq('English', this)">English</div>
+                    <div class="filter-chip" onclick="filterSeq('Math', this)">Math</div>
+                    <div class="filter-chip" onclick="filterSeq('Science', this)">Science</div>
+                    <div class="filter-chip" onclick="filterSeq('Social', this)">Social Studies</div>
+                    <div class="filter-chip" onclick="filterSeq('Chinese', this)">Chinese</div>
+                    <div class="filter-chip" onclick="filterSeq('Electives', this)">Electives</div>
+                </div>
+            </div>
+
+            <div id="filterReading" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-grow lg:max-w-5xl mx-auto">
+                <select id="readYearFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Years</option></select>
+                <select id="readGenreFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Genres</option></select>
+                <select id="readGradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Grades</option></select>
+                <select id="readLexileFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold"><option value="All">All Lexile</option></select>
+                <input type="text" id="readSearchBox" placeholder="Search title / author..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold col-span-2 md:col-span-3 lg:col-span-1">
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto p-4 mt-6">
+        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
+        <div id="sequenceView" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
+        </div>
+
+        <div id="readingView" class="hidden">
+            <!-- 老師的暑假閱讀邀請信 -->
+            <div class="relative max-w-3xl mx-auto mb-12 text-center">
+                <div class="inline-block bg-kcis-blue text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest mb-4">Summer 2026</div>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-800 italic tracking-tight mb-1">Summer Reading List</h2>
+                <p class="text-kcis-blue font-bold uppercase tracking-[0.2em] text-[11px] mb-6">暑假閱讀推薦書單 · IPD Teachers' Picks</p>
+                <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 sm:p-8 text-left">
+                    <p class="font-bold text-slate-700 mb-3">Dear Kang Chiao Linkou students,</p>
+                    <p class="text-sm text-slate-600 leading-relaxed mb-3">None of these books will be on a test. We, your teachers, will not create projects, assign homework or attach any other means of academic or personal responsibility to the reading of these texts. This is a list of books that have moved us, inspired us, and opened our eyes to lives lived other than our own. The purpose of this list is to share our love of reading with you and maybe in doing so, you may find that you too are interested in stories, fiction and nonfiction.</p>
+                    <p class="text-sm text-slate-600 leading-relaxed">You don't have to read all of them. You may not read any of them, but perhaps you will find a book here that isn't too long, too boring, or too difficult. Maybe you will find a book that seems like it was written just for you in this time and place. We hope to hear about your reading journey when we meet again. Have a great summer.</p>
+                    <p class="text-right text-kcis-blue font-black italic mt-4">— Your Teachers</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between max-w-7xl mx-auto mb-5 px-1">
+                <h3 class="text-lg font-black text-slate-800 italic border-l-4 border-kcis-blue pl-3 uppercase">The Books</h3>
+                <span id="readingCount" class="text-xs font-black text-slate-400 uppercase tracking-widest"></span>
+            </div>
+
+            <div id="readingGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5"></div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t mt-12">
+        <div class="max-w-7xl mx-auto px-6 py-12">
+            <h2 class="text-xl font-black text-slate-800 mb-8 border-l-4 border-kcis-blue pl-3 italic uppercase">Important Information</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-12 mb-12">
+                <div>
+                    <h3 class="font-bold text-kcis-blue mb-2">領取說明 Distribution</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">G7–G10 課本由學校統一訂購並於開學首日發放。G11–G12 「英文科」由學校採購；其餘科目採預購制（表單於 5 月公告）。</p>
+                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">G7–G10 textbooks are distributed on the first day. G11–G12 English is school-purchased; others are pre-order (available in May).</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-kcis-blue mb-2">退換說明 Returns</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">預購書籍恕不接受退書。其他課本退換請於開學後兩週內至國際處 IPD 辦理，逾期不予受理。</p>
+                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Pre-ordered textbooks are non-returnable. Other returns must be processed at the IPD Office within the first 2 weeks.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-kcis-blue mb-2">課程使用時程 Usage Period</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">除了英文科讀本會分上下學期使用外，其餘課本皆使用一學年！</p>
+                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Textbooks are for the full year, except for English Readers which are issued by semester.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-kcis-blue mb-2">收費參考 Pricing Info</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">目前網頁顯示的是本學年 (SY25-26) 的金額，僅供預算參考；新學年 (SY26-27) 正式金額將在 7 月更新。</p>
+                    <p class="text-[11px] text-slate-400 italic mt-1 font-medium">Prices shown are SY25-26 rates for reference only; official SY26-27 fees will be updated in July.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-kcis-blue mb-2">詳細明細 More Info</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed mb-1">如需查閱詳細書目資訊（作者、版本等），請點選該書目之「ISBN」連結。</p>
+                    <p class="text-[11px] text-slate-400 italic font-medium">For detailed bibliographic info (editions, authors, etc.), please click the "ISBN" link.</p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <h3 class="font-bold text-red-500 mb-1">貼心提醒 Notice</h3>
+                    <p class="text-sm text-slate-700 font-bold leading-relaxed mb-1 italic underline">本校保留根據教學需求調整選書之權利。</p>
+                    <p class="text-[11px] text-slate-400 italic font-medium">The school reserves the right to adjust textbook selections based on instructional requirements.</p>
+                </div>
+            </div>
+
+            <div class="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-center md:text-left">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">&copy; 2026 Kang Chiao International School Linkou Campus</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">International Programs Department (IPD) Portal</p>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <div class="text-right text-slate-400">
+                        <p class="text-[10px] font-black uppercase leading-tight">IPD Office | Cindy Lin</p>
+                        <p class="text-xs font-bold text-slate-600">02-8512-8216</p>
+                    </div>
+                    <div class="h-8 w-[1px] bg-slate-200"></div>
+                    <a href="mailto:cindylin@kcislk.ntpc.edu.tw" class="bg-slate-100 hover:bg-kcis-blue hover:text-white transition-all p-2.5 rounded-full text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 書籍詳情彈窗 -->
+    <div id="bookModal" class="hidden fixed inset-0 z-[100] items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeBook()"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <button onclick="closeBook()" class="absolute top-4 right-4 z-10 bg-slate-100 hover:bg-slate-200 rounded-full w-9 h-9 flex items-center justify-center font-black text-slate-500">✕</button>
+            <div id="bookModalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_knuNkj3LpCmnfJPXK8r4GM-MdUUfwVys1YMw7T-uY59Y-gQ/exec";
+        let allBooks = [], allCourses = [], currentSeqFilter = 'All';
+
+        let loaderTimer = null;
+
+        function hideLoader() {
+            const loader = document.getElementById('full-page-loader');
+            if (!loader) return;
+            loader.style.opacity = '0';
+            loader.style.pointerEvents = 'none';            // 淡出期間就不再擋點擊
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+        // 安全網：載入太久(GAS 資料庫從睡眠喚醒)時，給使用者清楚訊息與重新整理按鈕，而不是一直空轉
+        function showSlowLoader() {
+            const loader = document.getElementById('full-page-loader');
+            if (!loader || loader.style.display === 'none' || loader.style.opacity === '0') return;
+            loader.innerHTML = `
+                <div class="spinner-core mb-5"></div>
+                <h2 class="text-lg font-black text-slate-700 mb-1">資料載入較慢…</h2>
+                <p class="text-slate-400 text-xs mb-5 text-center px-6 leading-relaxed">學校資料庫正在喚醒，請再等一下，或點下方重新整理。<br><span class="italic">Server is waking up — please wait or refresh.</span></p>
+                <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`;
+        }
+
+        const CACHE_KEY = 'kcis_portal_data_v1';
+
+        function applyData() {
+            setupFilters();
+            renderSequence();
+            clearTimeout(loaderTimer);
+            hideLoader();
+        }
+
+        function textbookViewMsg(html) {
+            const tv = document.getElementById('textbookView');
+            if (tv) tv.innerHTML = `<div class="col-span-full text-center py-24">${html}</div>`;
+        }
+
+        async function init() {
+            let cachedStr = null;
+            try { cachedStr = localStorage.getItem(CACHE_KEY); } catch (e) {}
+
+            // 1) 有快取就「秒開」上次的資料
+            if (cachedStr) {
+                try {
+                    const c = JSON.parse(cachedStr);
+                    allBooks = c.books;
+                    allCourses = c.courses;
+                    applyData();
+                } catch (e) { cachedStr = null; }
+            }
+
+            // 2) 沒快取時：不要整頁卡住！先讓網頁開起來，課本區塊單獨顯示「載入中」
+            //    這樣使用者馬上能用選單、能切到書單頁，不會「整個網頁開不了」
+            if (!cachedStr) {
+                hideLoader();
+                textbookViewMsg(`
+                    <div class="spinner-core mx-auto mb-4"></div>
+                    <p class="font-black text-slate-600">課本資料載入中…</p>
+                    <p class="text-slate-400 text-xs mt-1 italic px-6">Loading textbooks — the school database is waking up, please wait…</p>`);
+            }
+
+            // 3) 背景抓最新資料，回來再更新（內容沒變就不重畫，避免打斷操作）
+            try {
+                const [bookRes, courseRes] = await Promise.all([
+                    fetch(API_BASE).then(r => r.json()),
+                    fetch(API_BASE + "?action=getCourseData").then(r => r.json())
+                ]);
+                const books = bookRes.map(item => fixKeys(item));
+                const freshStr = JSON.stringify({ books: books, courses: courseRes });
+                try { localStorage.setItem(CACHE_KEY, freshStr); } catch (e) {}
+
+                if (freshStr !== cachedStr) {
+                    allBooks = books;
+                    allCourses = courseRes;
+                    applyData();   // 會重畫課本卡片，取代「載入中」訊息
+                }
+            } catch (e) {
+                if (!cachedStr) {
+                    textbookViewMsg(`
+                        <p class="text-red-500 font-black mb-1">⚠️ 課本資料載入失敗</p>
+                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 📚 still works above.</p>
+                        <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`);
+                }
+                // 有快取就維持快取畫面，不打擾使用者
+            }
+        }
+
+        function fixKeys(item) {
+            let n = {};
+            Object.keys(item).forEach(key => {
+                let k = key.toLowerCase().trim();
+                if (k.includes('grade')) n.grade = item[key];
+                else if (k.includes('subject')) n.subject = item[key];
+                else if (k.includes('level')) n.level = item[key];
+                else if (k.includes('title')) n.title = item[key];
+                else if (k.includes('isbn')) n.isbn = item[key];
+                else if (k.includes('price')) n.price = item[key];
+                else if (k.includes('ebook')) n.ebook = item[key];
+                else if (k.includes('cover')) n.coverurl = item[key];
+                else if (k.includes('semester')) n.semester = item[key];
+                else if (k.includes('course name')) n.coursename = item[key];
+                else n[k] = item[key];
+            });
+            return n;
+        }
+
+        function switchMode(mode) {
+            const modes = ['textbook', 'sequence', 'reading'];
+            if (!modes.includes(mode)) mode = 'textbook';
+            const tabClass = (active) => 'tab-btn uppercase text-[11px] sm:text-xs' + (active ? ' tab-active' : '');
+            document.getElementById('btnTextbook').className = tabClass(mode === 'textbook');
+            document.getElementById('btnSequence').className = tabClass(mode === 'sequence');
+            document.getElementById('btnReading').className = tabClass(mode === 'reading');
+            document.getElementById('filterTextbook').classList.toggle('hidden', mode !== 'textbook');
+            document.getElementById('filterSequence').classList.toggle('hidden', mode !== 'sequence');
+            document.getElementById('filterReading').classList.toggle('hidden', mode !== 'reading');
+            document.getElementById('textbookView').classList.toggle('hidden', mode !== 'textbook');
+            document.getElementById('sequenceView').classList.toggle('hidden', mode !== 'sequence');
+            document.getElementById('readingView').classList.toggle('hidden', mode !== 'reading');
+            if (mode === 'reading' && !readingLoaded) loadReading();
+            // 把目前分頁寫進網址 (例如 #reading)，方便直接分享連到該頁
+            if (location.hash !== '#' + mode) history.replaceState(null, '', '#' + mode);
+        }
+
+        // 依網址錨點開到對應分頁 (#reading / #sequence / #textbook)
+        function applyHashTab() {
+            const m = (location.hash || '').replace('#', '');
+            if (['textbook', 'sequence', 'reading'].includes(m)) switchMode(m);
+        }
+
+        function filterSeq(filterVal, btn) {
+            currentSeqFilter = filterVal;
+            document.querySelectorAll('#seqSubjectBtns .filter-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            renderSequence();
+        }
+
+        function setupFilters() {
+            const gradeEl = document.getElementById('gradeFilter'),
+                  subjectEl = document.getElementById('subjectFilter'),
+                  levelEl = document.getElementById('levelFilter');
+            [gradeEl, subjectEl, levelEl].forEach(el => el.classList.remove('opacity-50', 'cursor-not-allowed'));
+            const grades = [...new Set(allBooks.map(b => b.grade).filter(Boolean))].sort((a,b) => parseInt(a)-parseInt(b));
+            gradeEl.innerHTML = grades.map(g => `<option value="${g}">Grade ${g}</option>`).join('');
+            gradeEl.onchange = () => {
+                const subjects = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value)).map(b => b.subject).filter(Boolean))].sort();
+                subjectEl.innerHTML = `<option value="All">All Subjects</option>` + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+                subjectEl.onchange();
+            };
+            subjectEl.onchange = () => {
+                const rawLevels = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value) && (subjectEl.value === "All" || b.subject === subjectEl.value)).map(b => b.level).filter(Boolean))];
+                const sortedLevels = rawLevels.sort((a, b) => {
+                    const getRank = v => {
+                        const s = String(v).toUpperCase().trim();
+                        if (s === 'AP') return 1;
+                        if (s.includes('HONOR') || s === 'HN') return 2;
+                        return 4;
+                    };
+                    return getRank(a) - getRank(b) || String(a).localeCompare(String(b));
+                });
+                levelEl.innerHTML = `<option value="All">All Levels</option>` + sortedLevels.map(l => `<option value="${l}">${l}</option>`).join('');
+                renderBooks();
+            };
+            gradeEl.dispatchEvent(new Event('change'));
+            levelEl.onchange = renderBooks;
+            document.getElementById('searchBox').oninput = renderBooks;
+        }
+
+        function renderBooks() {
+            const grade = document.getElementById('gradeFilter').value, searchRaw = document.getElementById('searchBox').value.trim(), keyword = searchRaw.toLowerCase().replace(/-/g, '');
+            const filtered = allBooks.filter(b => {
+                if (!b.title) return false;
+                if (searchRaw.length > 0) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
+                return String(b.grade) === String(grade) && (document.getElementById('subjectFilter').value === "All" || b.subject === document.getElementById('subjectFilter').value) && (document.getElementById('levelFilter').value === "All" || b.level === document.getElementById('levelFilter').value);
+            });
+            if(filtered.length === 0) {
+                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching textbooks found.</div>`;
+                return;
+            }
+            document.getElementById('textbookView').innerHTML = filtered.map(b => {
+                const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
+                const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
+
+                const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
+                const cleanIsbn = rawIsbn.replace(/\D/g, '');
+
+                let finalCoverUrl = 'https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=In-house+Resource';
+                if (b.coverurl && b.coverurl.toLowerCase().startsWith('http')) {
+                    finalCoverUrl = b.coverurl;
+                } else if (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') {
+                    finalCoverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-M.jpg`;
+                }
+
+                const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-')
+                    ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
+                    : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
+
+                const rawPrint = String(b.price || '').trim().toUpperCase();
+                const rawDigital = String(b.ebook || '').trim().toUpperCase();
+
+                const printPrice = (rawPrint === '' || rawPrint === 'TBD') ? '待公告' : (rawPrint === '-' ? '-' : `NT$ ${b.price}`);
+                const digitalPrice = (rawDigital === '' || rawDigital === '-') ? '-' : (rawDigital === 'TBD' ? '待公告' : `NT$ ${b.ebook}`);
+
+                return `
+                <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
+                    <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b text-center">
+                        <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-xl rounded mx-auto">
+                        <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
+                        <div class="absolute top-4 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-400">G${b.grade}</div>
+                        ${b.level ? `<div class="absolute bottom-4 right-4 bg-kcis-blue text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">${b.level}</div>` : ''}
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col">
+                        <span class="text-[10px] font-black ${subjColor} uppercase tracking-widest mb-1 block">${b.subject || ''}</span>
+                        <h2 class="font-black text-slate-800 text-lg leading-tight mb-3">${b.title}</h2>
+                        ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight"><p class="text-[14px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-4"></div>'}
+                        <div class="mt-4 mb-6">${isbnTag}</div>
+                        <div class="mt-auto pt-4 border-t space-y-2 font-bold text-sm">
+                            <div class="flex justify-between"><span>Print</span><span>${printPrice}</span></div>
+                            <div class="flex justify-between text-green-600"><span>Digital</span><span>${digitalPrice}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderSequence() {
+            const container = document.getElementById('sequenceCols');
+            const grades = [7, 8, 9, 10, 11, 12];
+            const subjectOrder = { 'English': 1, 'Math': 2, 'Science': 3, 'Social Studies': 4, 'Chinese': 5, 'Electives': 6 };
+            const levelOrder = { '': 1, 'RG': 1, 'REGULAR': 1, 'HN': 2, 'HONORS': 2, 'HONOR': 2, 'AP': 3 };
+
+            container.innerHTML = grades.map(g => {
+                let gradeCourses = allCourses.filter(c => {
+                    const matchGrade = String(c.grade) === String(g);
+                    let matchSubj = false;
+                    if (currentSeqFilter === 'All') matchSubj = true;
+                    else if (currentSeqFilter === 'AP_ONLY') matchSubj = String(c.type || '').toUpperCase().includes('AP');
+                    else if (currentSeqFilter === 'Electives') matchSubj = String(c.subject || '').toLowerCase().includes('ele');
+                    else matchSubj = String(c.subject || '').toLowerCase().includes(currentSeqFilter.toLowerCase().substring(0,3));
+                    return matchGrade && matchSubj;
+                });
+
+                gradeCourses.sort((a, b) => {
+                    const sA = subjectOrder[a.subject] || 99, sB = subjectOrder[b.subject] || 99;
+                    if (sA !== sB) return sA - sB;
+                    const typeA = String(a.type || '').toUpperCase().trim(), typeB = String(b.type || '').toUpperCase().trim();
+                    const lA = levelOrder[typeA] || (typeA === '' ? 1 : 4), lB = levelOrder[typeB] || (typeB === '' ? 1 : 4);
+                    if (lA !== lB) return lA - lB;
+                    return String(a.name).localeCompare(String(b.name));
+                });
+
+                return `<div class="space-y-4">
+                    <h3 class="text-xl font-black text-slate-800 italic border-l-4 border-kcis-blue pl-3 mb-6">GRADE ${g}</h3>
+                    <div class="space-y-3">${gradeCourses.map(c => {
+                        const subj = String(c.subject || '').toLowerCase();
+                        const type = String(c.type || '').toUpperCase();
+                        let colorClass = subj.includes('eng') ? 'english' : subj.includes('math') ? 'math' : subj.includes('sci') ? 'science' : subj.includes('soc') ? 'social' : subj.includes('chi') ? 'chinese' : subj.includes('ele') ? 'electives' : '';
+                        const isAP = type.includes('AP');
+                        const isHN = type.includes('HONOR') || type === 'HN';
+                        return `<div class="seq-card ${colorClass}">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${c.subject}</span>
+                                <div class="flex gap-1">
+                                    ${isAP ? '<span class="ap-tag">AP</span>' : ''}
+                                    ${isHN ? '<span class="hn-tag">HN</span>' : ''}
+                                </div>
+                            </div>
+                            <p class="text-[13px] font-bold text-slate-800 leading-tight">${c.name}</p>
+                        </div>`;
+                    }).join('')}</div>
+                </div>`;
+            }).join('');
+        }
+
+        /* =========================================================
+           暑期閱讀推薦書單 (Reading List) — 即時讀取 Google Sheet
+           ========================================================= */
+        const READING_CSV = "https://docs.google.com/spreadsheets/d/1AbJwf2pSneYwNOKOEiEnQNRHk0Pruo7vvEFJEbTaG0g/gviz/tq?tqx=out:csv&gid=948064640";
+        let readingBooks = [], renderedReading = [], readingLoaded = false, coverObserver = null;
+
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 小型 CSV 解析器：支援引號內的逗號與換行
+        function parseCSV(text) {
+            const rows = []; let row = [], cur = '', inQ = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQ) {
+                    if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+                    else cur += c;
+                } else {
+                    if (c === '"') inQ = true;
+                    else if (c === ',') { row.push(cur); cur = ''; }
+                    else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+                    else if (c === '\r') { /* skip */ }
+                    else cur += c;
+                }
+            }
+            if (cur.length || row.length) { row.push(cur); rows.push(row); }
+            return rows;
+        }
+
+        // 把雜亂的 Genre 文字收斂成幾個大類，方便下拉選單
+        // (來源資料有些格子夾雜換行/空白，先壓平再比對)
+        function normGenre(g) {
+            const s = (g || '').replace(/\s+/g, ' ').trim();          // 清掉換行的乾淨標籤
+            const c = s.toLowerCase().replace(/[^a-z0-9]/g, '');       // 壓成連續字串方便比對
+            if (!s) return 'Other';
+            if (c.includes('nonfiction')) return 'Non-fiction';
+            if (c.includes('sciencefiction') || c.includes('scifi')) return 'Science Fiction';
+            if (c.includes('fantasy')) return 'Fantasy';
+            if (c.includes('memoir') || c.includes('biograph')) return 'Memoir / Biography';
+            if (c.includes('comingofage')) return 'Coming of Age';
+            if (c.includes('poetry')) return 'Poetry';
+            if (c.includes('graphic')) return 'Graphic Novel';
+            if (c.includes('horror')) return 'Horror';
+            if (c.includes('mystery')) return 'Mystery';
+            if (c.includes('youngadult')) return 'Young Adult';
+            if (c.includes('fiction')) return 'Fiction';
+            return s;
+        }
+
+        // 把雜亂的 Grade 字串解析成 [最低, 最高] 年級範圍
+        // 支援：單一(G8)、範圍(G9-12 / G10-G12 / G8H-12)、以上(G10+ / G9H+)
+        function bookGradeRange(g) {
+            const s = String(g);
+            const nums = (s.match(/\d+/g) || []).map(Number).filter(x => x >= 7 && x <= 12);
+            if (!nums.length) return null;
+            let min = Math.min(...nums), max = Math.max(...nums);
+            if (s.includes('+')) max = 12;   // 例如 G10+ 代表 G10 以上
+            return [min, max];
+        }
+
+        // 書的年級範圍是否和某個學段重疊 (junior=G7-9, senior=G10-12)
+        function gradeInBand(g, band) {
+            const r = bookGradeRange(g);
+            if (!r) return false;
+            const [lo, hi] = band === 'junior' ? [7, 9] : [10, 12];
+            return r[0] <= hi && r[1] >= lo;
+        }
+
+        // Lexile 級距
+        const LEXILE_BANDS = [
+            { value: 'u800',  label: 'Under 800L',   lo: 0,    hi: 799 },
+            { value: '800',   label: '800-1000L',    lo: 800,  hi: 1000 },
+            { value: '1000',  label: '1000-1200L',   lo: 1000, hi: 1200 },
+            { value: '1200',  label: '1200L+',       lo: 1200, hi: 99999 }
+        ];
+
+        // 把雜亂的 Lexile 字串解析成 [最低, 最高]，無數字回傳 null
+        function bookLexileRange(v) {
+            const s = String(v);
+            const nums = (s.match(/\d+/g) || []).map(Number);
+            if (!nums.length) return null;
+            let min = Math.min(...nums), max = Math.max(...nums);
+            if (s.includes('+')) max = 99999;   // 例如 1200+ 代表 1200 以上
+            return [min, max];
+        }
+
+        // 書的 Lexile 範圍是否和某級距重疊
+        function lexileInBand(v, value) {
+            const r = bookLexileRange(v);
+            if (!r) return false;
+            const band = LEXILE_BANDS.find(b => b.value === value);
+            if (!band) return false;
+            return r[0] <= band.hi && r[1] >= band.lo;
+        }
+
+        function cleanComment(text, teacher) {
+            let t = (text || '').trim();
+            const tt = (teacher || '').trim();
+            // 評語結尾常重複老師名字，去掉避免重複顯示
+            if (tt && t.endsWith(tt)) t = t.slice(0, -tt.length).trim();
+            return t;
+        }
+
+        async function loadReading() {
+            readingLoaded = true;
+            const grid = document.getElementById('readingGrid');
+            grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">Loading books...</div>';
+            try {
+                const res = await fetch(READING_CSV);
+                const text = await res.text();
+                const rows = parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+                if (!rows.length) throw new Error('empty');
+                const header = rows.shift().map(h => h.toLowerCase().trim());
+                const col = {};
+                header.forEach((h, i) => {
+                    if (col.title == null && (h.includes('書名') || h.includes('title'))) col.title = i;
+                    else if (col.author == null && h.includes('author')) col.author = i;
+                    else if (col.genre == null && h.includes('genre')) col.genre = i;
+                    else if (col.grade == null && h.includes('grade')) col.grade = i;
+                    else if (col.lexile == null && h.includes('lexile')) col.lexile = i;
+                    else if (col.link == null && h.includes('link')) col.link = i;
+                    else if (col.comment == null && h.includes('comment')) col.comment = i;
+                    else if (col.teacher == null && h.includes('teacher')) col.teacher = i;
+                    else if (col.year == null && h.includes('recommend')) col.year = i;
+                    else if (col.cover == null && (h.includes('cover') || h.includes('書封'))) col.cover = i;
+                    else if (col.pub == null && h.includes('pub')) col.pub = i;
+                });
+                const get = (r, k) => (col[k] != null ? (r[col[k]] || '').trim() : '');
+                const flat = (r, k) => get(r, k).replace(/\s+/g, ' ').trim();   // 壓平單行欄位
+                readingBooks = rows.map(r => ({
+                    title: flat(r, 'title'), author: flat(r, 'author'), genre: flat(r, 'genre'),
+                    grade: flat(r, 'grade'), lexile: flat(r, 'lexile'), link: get(r, 'link'),
+                    pub: flat(r, 'pub'), year: flat(r, 'year'), teacher: flat(r, 'teacher'),
+                    comment: get(r, 'comment'), cover: get(r, 'cover')
+                })).filter(b => b.title);
+
+                setupReadingFilters();
+                renderReading();
+                // 若是直接連到書單頁(#reading)，書單載好就先收起載入畫面，不必等課本資料庫喚醒
+                if (!document.getElementById('readingView').classList.contains('hidden')) {
+                    clearTimeout(loaderTimer);
+                    hideLoader();
+                }
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-red-500 font-black italic">⚠️ 無法讀取書單。請確認 Google Sheet 已設為「知道連結的任何人可檢視」。</div>';
+            }
+        }
+
+        // 想改「打開時預設顯示哪一年」就改這裡：
+        //   'latest' = 預設顯示最新的一年   |   'All' = 預設顯示全部   |   '2026' = 預設某一年
+        const DEFAULT_READING_YEAR = 'latest';
+
+        function setupReadingFilters() {
+            // 年份下拉（由新到舊）
+            const years = [...new Set(readingBooks.map(b => (b.year || '').trim()).filter(Boolean))]
+                .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            const yf = document.getElementById('readYearFilter');
+            yf.innerHTML = '<option value="All">All Years</option>' + years.map(y => `<option value="${esc(y)}">${esc(y)} Picks</option>`).join('');
+            let def = DEFAULT_READING_YEAR;
+            if (def === 'latest') def = years[0] || 'All';
+            if ([...yf.options].some(o => o.value === def)) yf.value = def;
+
+            const genres = [...new Set(readingBooks.map(b => normGenre(b.genre)).filter(Boolean))].sort();
+            const gf = document.getElementById('readGenreFilter');
+            gf.innerHTML = '<option value="All">All Genres</option>' + genres.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+            const grf = document.getElementById('readGradeFilter');
+            grf.innerHTML = '<option value="All">All Grades</option>'
+                + '<option value="junior">Junior High (G7-G9)</option>'
+                + '<option value="senior">Senior High (G10-G12)</option>';
+            const lf = document.getElementById('readLexileFilter');
+            lf.innerHTML = '<option value="All">All Lexile</option>'
+                + LEXILE_BANDS.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
+            yf.onchange = renderReading;
+            gf.onchange = renderReading;
+            grf.onchange = renderReading;
+            lf.onchange = renderReading;
+            document.getElementById('readSearchBox').oninput = renderReading;
+        }
+
+        function readingCardHTML(b, i) {
+            return `
+            <div class="reading-card cursor-pointer" onclick="openBook(${i})">
+                <div class="cover-wrap relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100" style="aspect-ratio:2/3;">
+                    <div class="absolute inset-0 flex items-center justify-center p-3 text-center bg-gradient-to-br from-slate-100 to-slate-200">
+                        <span class="text-[11px] font-black text-slate-500 leading-tight">${esc(b.title)}</span>
+                    </div>
+                    <img class="cover-img absolute inset-0 w-full h-full object-cover" style="opacity:0;transition:opacity .4s" onload="this.style.opacity=1" data-idx="${i}">
+                    ${b.genre ? `<div class="absolute top-2 left-2 bg-kcis-blue/90 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wide max-w-[85%] truncate">${esc(normGenre(b.genre))}</div>` : ''}
+                </div>
+                <div class="mt-2">
+                    <h3 class="font-black text-slate-800 text-[13px] leading-tight line-clamp-2">${esc(b.title)}</h3>
+                    <p class="text-[11px] text-slate-400 font-bold italic truncate">${esc(b.author)}</p>
+                </div>
+            </div>`;
+        }
+
+        function renderReading() {
+            const year = document.getElementById('readYearFilter').value;
+            const genre = document.getElementById('readGenreFilter').value;
+            const grade = document.getElementById('readGradeFilter').value;
+            const lexile = document.getElementById('readLexileFilter').value;
+            const kw = document.getElementById('readSearchBox').value.trim().toLowerCase();
+            renderedReading = readingBooks.filter(b => {
+                if (year !== 'All' && (b.year || '').trim() !== year) return false;
+                if (genre !== 'All' && normGenre(b.genre) !== genre) return false;
+                if (grade !== 'All' && !gradeInBand(b.grade, grade)) return false;
+                if (lexile !== 'All' && !lexileInBand(b.lexile, lexile)) return false;
+                if (kw) {
+                    const hay = (b.title + ' ' + b.author + ' ' + b.genre + ' ' + b.comment).toLowerCase();
+                    if (!hay.includes(kw)) return false;
+                }
+                return true;
+            });
+            const cnt = document.getElementById('readingCount');
+            if (cnt) cnt.textContent = renderedReading.length + ' book' + (renderedReading.length === 1 ? '' : 's');
+            const grid = document.getElementById('readingGrid');
+            if (!renderedReading.length) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching books found.</div>';
+                return;
+            }
+            grid.innerHTML = renderedReading.map((b, i) => readingCardHTML(b, i)).join('');
+            if (!coverObserver) {
+                coverObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(e => {
+                        if (e.isIntersecting) {
+                            const img = e.target;
+                            loadCover(img, renderedReading[+img.dataset.idx]);
+                            coverObserver.unobserve(img);
+                        }
+                    });
+                }, { rootMargin: '300px' });
+            }
+            document.querySelectorAll('#readingGrid .cover-img').forEach(img => coverObserver.observe(img));
+        }
+
+        // 取得書封：先用試算表貼的網址，再查快取，最後問 Google Books
+        async function loadCover(img, b) {
+            if (!img || !b) return;
+            if (b.cover && /^https?:/i.test(b.cover)) { img.src = b.cover; return; }
+            const key = 'rcover:' + b.title + '|' + b.author;
+            let cached = null;
+            try { cached = localStorage.getItem(key); } catch (e) {}
+            if (cached) { if (cached !== 'none') img.src = cached; return; }
+            try {
+                let q = 'intitle:' + b.title;
+                const au = (b.author || '').split('(')[0].trim();
+                if (au) q += ' inauthor:' + au;
+                const r = await fetch('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q) + '&maxResults=1&country=US');
+                const d = await r.json();
+                let url = d && d.items && d.items[0] && d.items[0].volumeInfo && d.items[0].volumeInfo.imageLinks && d.items[0].volumeInfo.imageLinks.thumbnail;
+                if (url) {
+                    url = url.replace(/^http:/, 'https:').replace('&edge=curl', '');
+                    img.src = url;
+                    try { localStorage.setItem(key, url); } catch (e) {}
+                } els
