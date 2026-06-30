@@ -100,7 +100,7 @@
                 <nav class="flex gap-6 sm:gap-8">
                     <button id="btnTextbook" onclick="switchMode('textbook')" class="tab-btn tab-active uppercase text-[11px] sm:text-xs">📖 Textbook List</button>
                     <button id="btnSequence" onclick="switchMode('sequence')" class="tab-btn uppercase text-[11px] sm:text-xs">🗂️ Course Sequence</button>
-                    <button id="btnReading" onclick="switchMode('reading')" class="tab-btn uppercase text-[11px] sm:text-xs">📚 Reading List</button>
+                    <button id="btnReading" onclick="switchMode('reading')" class="tab-btn uppercase text-[11px] sm:text-xs">🌞 Reading List</button>
                 </nav>
             </div>
 
@@ -315,7 +315,7 @@
                 if (!cachedStr) {
                     textbookViewMsg(`
                         <p class="text-red-500 font-black mb-1">⚠️ 課本資料載入失敗</p>
-                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 📚 still works above.</p>
+                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 🌞 still works above.</p>
                         <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`);
                 }
                 // 有快取就維持快取畫面，不打擾使用者
