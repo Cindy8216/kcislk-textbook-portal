@@ -267,13 +267,16 @@
             hideLoader();
         }
 
-        async function init() {
-            // 15 秒還沒載好就顯示「載入較慢」訊息＋重新整理按鈕
-            loaderTimer = setTimeout(showSlowLoader, 15000);
+        function textbookViewMsg(html) {
+            const tv = document.getElementById('textbookView');
+            if (tv) tv.innerHTML = `<div class="col-span-full text-center py-24">${html}</div>`;
+        }
 
-            // 1) 有快取就「秒開」上次的資料，不用等慢吞吞的資料庫
+        async function init() {
             let cachedStr = null;
             try { cachedStr = localStorage.getItem(CACHE_KEY); } catch (e) {}
+
+            // 1) 有快取就「秒開」上次的資料
             if (cachedStr) {
                 try {
                     const c = JSON.parse(cachedStr);
@@ -283,7 +286,17 @@
                 } catch (e) { cachedStr = null; }
             }
 
-            // 2) 背景抓最新資料，回來再悄悄更新（內容沒變就不重畫，避免打斷操作）
+            // 2) 沒快取時：不要整頁卡住！先讓網頁開起來，課本區塊單獨顯示「載入中」
+            //    這樣使用者馬上能用選單、能切到書單頁，不會「整個網頁開不了」
+            if (!cachedStr) {
+                hideLoader();
+                textbookViewMsg(`
+                    <div class="spinner-core mx-auto mb-4"></div>
+                    <p class="font-black text-slate-600">課本資料載入中…</p>
+                    <p class="text-slate-400 text-xs mt-1 italic px-6">Loading textbooks — the school database is waking up, please wait…</p>`);
+            }
+
+            // 3) 背景抓最新資料，回來再更新（內容沒變就不重畫，避免打斷操作）
             try {
                 const [bookRes, courseRes] = await Promise.all([
                     fetch(API_BASE).then(r => r.json()),
@@ -296,21 +309,16 @@
                 if (freshStr !== cachedStr) {
                     allBooks = books;
                     allCourses = courseRes;
-                    applyData();
-                } else {
-                    clearTimeout(loaderTimer);
-                    hideLoader();
+                    applyData();   // 會重畫課本卡片，取代「載入中」訊息
                 }
             } catch (e) {
-                clearTimeout(loaderTimer);
-                if (cachedStr) {
-                    hideLoader();   // 有快取就維持畫面，不打擾使用者
-                } else {
-                    const loader = document.getElementById('full-page-loader');
-                    if (loader) loader.innerHTML = `
-                        <h2 class="text-red-500 font-black px-4 text-center mb-4">⚠️ 連線發生問題，請重新整理<br><span class="text-xs font-bold text-slate-400">Connection problem. Please refresh.</span></h2>
-                        <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`;
+                if (!cachedStr) {
+                    textbookViewMsg(`
+                        <p class="text-red-500 font-black mb-1">⚠️ 課本資料載入失敗</p>
+                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 📚 still works above.</p>
+                        <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`);
                 }
+                // 有快取就維持快取畫面，不打擾使用者
             }
         }
 
@@ -757,14 +765,4 @@
                     url = url.replace(/^http:/, 'https:').replace('&edge=curl', '');
                     img.src = url;
                     try { localStorage.setItem(key, url); } catch (e) {}
-                } else {
-                    try { localStorage.setItem(key, 'none'); } catch (e) {}
-                }
-            } catch (e) { /* 找不到就保留底圖 */ }
-        }
-
-        function openBook(i) {
-            const b = renderedReading[i];
-            if (!b) return;
-            const comment = cleanComment(b.comment, b.teacher);
-            document.getElement
+                } els
