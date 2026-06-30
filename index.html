@@ -165,6 +165,7 @@
 
     <footer class="bg-white border-t mt-12">
         <div class="max-w-7xl mx-auto px-6 py-12">
+            <div id="importantInfo">
             <h2 class="text-xl font-black text-slate-800 mb-8 border-l-4 border-kcis-blue pl-3 italic uppercase">Important Information</h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-12 mb-12">
@@ -203,6 +204,7 @@
                     <p class="text-sm text-slate-700 font-bold leading-relaxed mb-1 italic underline">本校保留根據教學需求調整選書之權利。</p>
                     <p class="text-[11px] text-slate-400 italic font-medium">The school reserves the right to adjust textbook selections based on instructional requirements.</p>
                 </div>
+            </div>
             </div>
 
             <div class="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -315,7 +317,7 @@
                 if (!cachedStr) {
                     textbookViewMsg(`
                         <p class="text-red-500 font-black mb-1">⚠️ 課本資料載入失敗</p>
-                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 🌞 still works above.</p>
+                        <p class="text-slate-400 text-xs mb-4 italic">Couldn't load textbooks. The Reading List 📚 still works above.</p>
                         <button onclick="location.reload()" class="bg-kcis-blue text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-xl hover:opacity-90">重新整理 Refresh</button>`);
                 }
                 // 有快取就維持快取畫面，不打擾使用者
@@ -354,6 +356,9 @@
             document.getElementById('textbookView').classList.toggle('hidden', mode !== 'textbook');
             document.getElementById('sequenceView').classList.toggle('hidden', mode !== 'sequence');
             document.getElementById('readingView').classList.toggle('hidden', mode !== 'reading');
+            // 頁尾「Important Information」是課本購買說明 → 只在課本查詢頁顯示，其餘隱藏
+            const info = document.getElementById('importantInfo');
+            if (info) info.classList.toggle('hidden', mode !== 'textbook');
             if (mode === 'reading' && !readingLoaded) loadReading();
             // 把目前分頁寫進網址 (例如 #reading)，方便直接分享連到該頁
             if (location.hash !== '#' + mode) history.replaceState(null, '', '#' + mode);
