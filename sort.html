@@ -250,9 +250,20 @@
         }
 
         function markAllDone() {
-            Object.entries(currentBook.classes).forEach(([hr, need]) => {
-                savePlaced(currentBook.isbn, hr, need);
-            });
+            const total = currentBook.total || 0;
+            const classes = Object.entries(currentBook.classes).sort(([a], [b]) => a.localeCompare(b));
+            const sumNeeds = classes.reduce((s, [, n]) => s + n, 0);
+
+            if (total === 0 || total >= sumNeeds) {
+                classes.forEach(([hr, need]) => savePlaced(currentBook.isbn, hr, need));
+            } else {
+                let remaining = total;
+                classes.forEach(([hr, need]) => {
+                    const p = Math.min(need, remaining);
+                    savePlaced(currentBook.isbn, hr, p);
+                    remaining -= p;
+                });
+            }
             renderModalBody();
             renderGrid();
         }
