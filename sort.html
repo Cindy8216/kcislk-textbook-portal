@@ -163,12 +163,16 @@
                         ${(() => {
                             const order = book.order || 0;
                             const total = book.total || 0;
-                            if (total === 0) return "";
-                            const fromStock = Math.max(0, need - order);
-                            if (fromStock > 0) {
-                                return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#fef3c7;color:#92400e">需動庫存 ${fromStock} 本</div>`;
+                            if (total === 0 && order === 0) return "";
+                            const leftover = total - need;
+                            const leftoverText = leftover > 0 ? `　剩 ${leftover} 本` : "";
+                            if (order >= need) {
+                                return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#dcfce7;color:#166534">訂單足夠 ✓${leftoverText}</div>`;
+                            } else if (total >= need) {
+                                return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#fef3c7;color:#92400e">需動庫存 ${need - order} 本${leftoverText}</div>`;
+                            } else {
+                                return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#fee2e2;color:#991b1b">庫存不足，缺 ${need - total} 本</div>`;
                             }
-                            return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#dcfce7;color:#166534">訂單足夠 ✓</div>`;
                         })()}
                     </div>
                 </div>`;
