@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分書工具 | KCIS IPD SY26-27</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --kcis-blue: #00A3E0; }
+        .book-card { transition: all 0.2s; cursor: pointer; }
+        .book-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+        .book-card.all-done { opacity: 0.45; }
+        input[type=number] { -moz-appearance: textfield; }
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <div class="sticky top-0 z-40 shadow-md" style="background:#00A3E0">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-white font-black text-base tracking-tight">KCIS 分書工具</span>
+                <span class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">SY26-27</span>
+            </div>
+            <div id="overallProgress" class="text-white/90 text-sm font-bold"></div>
+        </div>
+    </div>
+
+    <main class="max-w-6xl mx-auto p-4 mt-4">
+        <div id="loading" class="text-center py-24 text-slate-400 text-sm">連線中，請稍候...</div>
+        <div id="bookGrid" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+    </main>
+
+    <div id="modalBg" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="px-5 py-4 flex items-start justify-between" style="background:#00A3E0">
+                <div>
+                    <h2 id="modalTitle" class="text-white font-black text-base leading-tight"></h2>
+                    <p id="modalISBN" class="text-white/60 text-xs mt-1 font-mono"></p>
+                </div>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white text-2xl leading-none ml-4 mt-0.5">&#x2715;</button>
+            </div>
+
+            <div class="px-5 py-2 bg-slate-100 border-b border-slate-200 flex justify-between">
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">班級</span>
+                <div class="flex gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="w-12 text-center">需要</span>
+                    <span class="w-16 text-center">已放</span>
+                    <span class="w-10 text-center">狀態</span>
+                </div>
+            </div>
+
+            <div id="modalBody" class="overflow-y-auto divide-y divide-slate-100" style="max-height:320px"></div>
+
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <span id="modalSummary" class="text-sm font-bold text-slate-600"></span>
+                <button onclick="markAllDone()" class="text-white text-xs px-4 py-2 rounded-full font-bold" style="background:#00A3E0">全部放好</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_knuNkj3LpCmnfJPXK8r4GM-MdUUfwVys1YMw7T-uY59Y-gQ/exec";
+        const STORAGE_KEY = "kcis_sort_sy2627";
+
+        let allBooks = [];
+        let currentBook = null;
+        let placed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+
+        function getPlaced(isbn, hr) {
+            return (placed[isbn] && placed[isbn][hr] != null) ? placed[isbn][hr] : 0;
+        }
+
+        function savePlaced(isbn, hr, val) {
+            if (!placed[isbn]) placed[isbn] = {};
+            placed[isbn][hr] = val;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(placed));
+        }
+
+        function isBookDone(book) {
+            return Object.entries(book.classes).every(([hr, need]) => getPlaced(book.isbn, hr) >= need);
+        }
+
+        function totalFor(book) {
+            const need = Object.values(book.classes).reduce((a, b) => a + b, 0);
+            const done = Object.keys(book.classes).reduce((a, hr) => a + getPlaced(book.isbn, hr), 0);
+            return { need, done };
+        }
+
+        async function init() {
+            try {
+                const res = await fetch(API_BASE + "?action=getDistribution");
+                allBooks = await res.json();
+                renderGrid();
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("bookGrid").classList.remove("hidden");
+            } catch (e) {
+                document.getElementById("loading").textContent = "載入失敗，請重新整理頁面";
+            }
+        }
+
+        function renderGrid() {
+            const doneCount = allBooks.filter(isBookDone).length;
+            document.getElementById("overallProgress").textContent = "完成 " + doneCount + " / " + allBooks.length + " 種";
+
+            document.getElementById("bookGrid").innerHTML = allBooks.map(book => {
+                const isDone = isBookDone(book);
+                const { need, done } = totalFor(book);
+                const classCount = Object.keys(book.classes).length;
+                const isbn = String(book.isbn).replace(/-/g, "");
+                const coverUrl = "https://covers.openlibrary.org/b/isbn/" + isbn + "-M.jpg";
+                const fallback = "https://via.placeholder.com/200x280/F1F5F9/94A3B8?text=No+Cover";
+
+                return `<div class="book-card bg-white rounded-2xl overflow-hidden border border-slate-200 ${isDone ? "all-done" : ""}" onclick="openModal('${book.isbn}')">
+                    <div class="relative bg-slate-100 flex items-center justify-center overflow-hidden" style="height:160px">
+                        <img src="${coverUrl}" onerror="this.src='${fallback}'" class="h-full w-full object-cover">
+                        ${isDone ? `<div class="absolute inset-0 flex items-center justify-center" style="background:rgba(34,197,94,0.35)">
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>` : ""}
+                    </div>
+                    <div class="p-3">
+                        <p class="text-[11px] font-black text-slate-800 leading-tight mb-2 line-clamp-2">${book.title}</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-slate-400">${classCount} 個班</span>
+                            <span class="text-[11px] font-bold ${done >= need ? "text-green-600" : "text-slate-500"}">${done}/${need}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join("");
+        }
+
+        function openModal(isbn) {
+            currentBook = allBooks.find(b => b.isbn === isbn);
+            if (!currentBook) return;
+            document.getElementById("modalTitle").textContent = currentBook.title;
+            document.getElementById("modalISBN").textContent = "ISBN " + currentBook.isbn;
+            renderModalBody();
+            document.getElementById("modalBg").classList.remove("hidden");
+        }
+
+        function renderModalBody() {
+            const classes = Object.entries(currentBook.classes).sort(([a], [b]) => a.localeCompare(b));
+            const totalNeed = classes.reduce((s, [, n]) => s + n, 0);
+            const totalDone = classes.reduce((s, [hr]) => s + getPlaced(currentBook.isbn, hr), 0);
+
+            document.getElementById("modalBody").innerHTML = classes.map(([hr, need]) => {
+                const p = getPlaced(currentBook.isbn, hr);
+                let badge, badgeStyle;
+                if (p === 0) {
+                    badge = "未放"; badgeStyle = "background:#f1f5f9;color:#64748b";
+                } else if (p >= need) {
+                    badge = "OK"; badgeStyle = "background:#dcfce7;color:#166534";
+                } else {
+                    badge = "差" + (need - p); badgeStyle = "background:#fee2e2;color:#991b1b";
+                }
+
+                return `<div class="flex items-center px-5 py-3 gap-3">
+                    <span class="font-black text-slate-800 text-sm w-10">${hr}</span>
+                    <span class="text-slate-500 text-sm flex-1">需 <strong class="text-slate-800">${need}</strong> 本</span>
+                    <input type="number" min="0" value="${p}"
+                        class="w-16 text-center border-2 border-slate-200 rounded-lg py-1 text-sm font-bold focus:border-blue-400 outline-none"
+                        oninput="updatePlaced('${hr}', this)">
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full w-10 text-center" style="${badgeStyle}">${badge}</span>
+                </div>`;
+            }).join("");
+
+            document.getElementById("modalSummary").textContent = "共 " + totalDone + " / " + totalNeed + " 本";
+        }
+
+        function updatePlaced(hr, input) {
+            const val = parseInt(input.value) || 0;
+            savePlaced(currentBook.isbn, hr, val);
+            renderModalBody();
+            renderGrid();
+        }
+
+        function markAllDone() {
+            Object.entries(currentBook.classes).forEach(([hr, need]) => {
+                savePlaced(currentBook.isbn, hr, need);
+            });
+            renderModalBody();
+            renderGrid();
+        }
+
+        function closeModal() {
+            document.getElementById("modalBg").classList.add("hidden");
+            currentBook = null;
+        }
+
+        document.getElementById("modalBg").addEventListener("click", function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        init();
+    </script>
+</body>
+</html>
