@@ -18,12 +18,26 @@
 <body class="bg-slate-50 min-h-screen">
 
     <div class="sticky top-0 z-40 shadow-md" style="background:#00A3E0">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <span class="text-white font-black text-base tracking-tight">KCIS 分書工具</span>
-                <span class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">SY26-27</span>
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <span class="text-white font-black text-base tracking-tight">KCIS 分書工具</span>
+                    <span class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">SY26-27</span>
+                </div>
+                <div id="overallProgress" class="text-white/90 text-sm font-bold"></div>
             </div>
-            <div id="overallProgress" class="text-white/90 text-sm font-bold"></div>
+            <div class="flex gap-2">
+                <input id="searchBox" type="text" placeholder="搜尋書名或掃 ISBN 條碼..." oninput="renderGrid()" onkeydown="handleSearchKey(event)"
+                    class="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-800 outline-none border-2 border-transparent focus:border-white/50"
+                    style="background:rgba(255,255,255,0.9)">
+                <select id="statusFilter" onchange="renderGrid()"
+                    class="px-3 py-1.5 rounded-lg text-sm font-bold text-slate-800 outline-none border-2 border-transparent"
+                    style="background:rgba(255,255,255,0.9)">
+                    <option value="all">全部</option>
+                    <option value="pending">未完成</option>
+                    <option value="done">已完成</option>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -104,7 +118,23 @@
             const doneCount = allBooks.filter(isBookDone).length;
             document.getElementById("overallProgress").textContent = "完成 " + doneCount + " / " + allBooks.length + " 種";
 
-            document.getElementById("bookGrid").innerHTML = allBooks.map(book => {
+            const keyword = (document.getElementById("searchBox")?.value || "").toLowerCase().trim();
+            const statusFilter = document.getElementById("statusFilter")?.value || "all";
+
+            const filtered = allBooks.filter(book => {
+                if (keyword) {
+                    const isbnClean = String(book.isbn).replace(/-/g, "");
+                    const kwClean = keyword.replace(/-/g, "");
+                    const matchTitle = book.title.toLowerCase().includes(keyword);
+                    const matchISBN = isbnClean.includes(kwClean);
+                    if (!matchTitle && !matchISBN) return false;
+                }
+                if (statusFilter === "done" && !isBookDone(book)) return false;
+                if (statusFilter === "pending" && isBookDone(book)) return false;
+                return true;
+            });
+
+            document.getElementById("bookGrid").innerHTML = filtered.map(book => {
                 const isDone = isBookDone(book);
                 const { need, done } = totalFor(book);
                 const classCount = Object.keys(book.classes).length;
@@ -183,6 +213,22 @@
             });
             renderModalBody();
             renderGrid();
+        }
+
+        function handleSearchKey(e) {
+            if (e.key !== "Enter") return;
+            const keyword = e.target.value.replace(/-/g, "").trim();
+            if (!keyword) return;
+            const match = allBooks.find(book =>
+                String(book.isbn).replace(/-/g, "") === keyword
+            ) || allBooks.find(book =>
+                book.title.toLowerCase().includes(keyword.toLowerCase())
+            );
+            if (match) {
+                openModal(match.isbn);
+                e.target.value = "";
+                renderGrid();
+            }
         }
 
         function closeModal() {
