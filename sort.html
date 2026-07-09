@@ -227,7 +227,32 @@
         }
 
         function updatePlaced(hr, input) {
-            const val = parseInt(input.value) || 0;
+            let val = parseInt(input.value) || 0;
+            const need = currentBook.classes[hr] || 0;
+            const total = currentBook.total || 0;
+
+            // 防呆1：不能超過該班需要量
+            if (val > need) {
+                val = need;
+                input.value = val;
+                input.style.borderColor = "#f59e0b";
+                setTimeout(() => { input.style.borderColor = ""; }, 1000);
+            }
+
+            // 防呆2：所有班總和不能超過 Total
+            if (total > 0) {
+                const otherPlaced = Object.entries(currentBook.classes)
+                    .filter(([h]) => h !== hr)
+                    .reduce((sum, [h]) => sum + getPlaced(currentBook.isbn, h), 0);
+                const maxAllowed = Math.max(0, total - otherPlaced);
+                if (val > maxAllowed) {
+                    val = maxAllowed;
+                    input.value = val;
+                    input.style.borderColor = "#ef4444";
+                    setTimeout(() => { input.style.borderColor = ""; }, 1000);
+                }
+            }
+
             savePlaced(currentBook.isbn, hr, val);
             renderModalBody();
             renderGrid();
