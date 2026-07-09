@@ -109,7 +109,7 @@
                 const { need, done } = totalFor(book);
                 const classCount = Object.keys(book.classes).length;
                 const isbn = String(book.isbn).replace(/-/g, "");
-                const coverUrl = "https://covers.openlibrary.org/b/isbn/" + isbn + "-M.jpg";
+                const coverUrl = book.coverUrl || ("https://covers.openlibrary.org/b/isbn/" + isbn + "-M.jpg");
                 const fallback = "https://via.placeholder.com/200x280/F1F5F9/94A3B8?text=No+Cover";
 
                 return `<div class="book-card bg-white rounded-2xl overflow-hidden border border-slate-200 ${isDone ? "all-done" : ""}" onclick="openModal('${book.isbn}')">
@@ -149,8 +149,10 @@
                 let badge, badgeStyle;
                 if (p === 0) {
                     badge = "未放"; badgeStyle = "background:#f1f5f9;color:#64748b";
-                } else if (p >= need) {
+                } else if (p === need) {
                     badge = "OK"; badgeStyle = "background:#dcfce7;color:#166534";
+                } else if (p > need) {
+                    badge = "多" + (p - need); badgeStyle = "background:#fef3c7;color:#92400e";
                 } else {
                     badge = "差" + (need - p); badgeStyle = "background:#fee2e2;color:#991b1b";
                 }
