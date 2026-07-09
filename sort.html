@@ -36,6 +36,7 @@
                     <option value="all">全部</option>
                     <option value="pending">未完成</option>
                     <option value="done">已完成</option>
+                    <option value="stock_needed">需動庫存</option>
                 </select>
             </div>
         </div>
@@ -131,6 +132,10 @@
                 }
                 if (statusFilter === "done" && !isBookDone(book)) return false;
                 if (statusFilter === "pending" && isBookDone(book)) return false;
+                if (statusFilter === "stock_needed") {
+                    const need = Object.values(book.classes).reduce((a, b) => a + b, 0);
+                    if ((book.order || 0) >= need) return false;
+                }
                 return true;
             });
 
@@ -155,6 +160,16 @@
                             <span class="text-[10px] text-slate-400">${classCount} 個班</span>
                             <span class="text-[11px] font-bold ${done >= need ? "text-green-600" : "text-slate-500"}">${done}/${need}</span>
                         </div>
+                        ${(() => {
+                            const order = book.order || 0;
+                            const total = book.total || 0;
+                            if (total === 0) return "";
+                            const fromStock = Math.max(0, need - order);
+                            if (fromStock > 0) {
+                                return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#fef3c7;color:#92400e">需動庫存 ${fromStock} 本</div>`;
+                            }
+                            return `<div class="mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-center" style="background:#dcfce7;color:#166534">訂單足夠 ✓</div>`;
+                        })()}
                     </div>
                 </div>`;
             }).join("");
@@ -163,8 +178,13 @@
         function openModal(isbn) {
             currentBook = allBooks.find(b => b.isbn === isbn);
             if (!currentBook) return;
+            const totalNeedAll = Object.values(currentBook.classes).reduce((s, n) => s + n, 0);
+            const stock = currentBook.stock || 0;
+            const stockDiff = stock - totalNeedAll;
+            const stockLabel = stock === 0 ? "" :
+                stockDiff >= 0 ? `　庫存 ${stock} 本 ✓ 多 ${stockDiff}` : `　庫存 ${stock} 本 ✗ 差 ${Math.abs(stockDiff)}`;
             document.getElementById("modalTitle").textContent = currentBook.title;
-            document.getElementById("modalISBN").textContent = "ISBN " + currentBook.isbn;
+            document.getElementById("modalISBN").textContent = "ISBN " + currentBook.isbn + stockLabel;
             renderModalBody();
             document.getElementById("modalBg").classList.remove("hidden");
         }
