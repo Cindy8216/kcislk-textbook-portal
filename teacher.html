@@ -64,9 +64,10 @@
 
             <div id="modalBody" class="overflow-y-auto divide-y divide-slate-100 flex-1"></div>
 
-            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
-                <span id="modalSummary" class="text-sm font-bold text-slate-600"></span>
-                <button id="markAllBtn" onclick="toggleAll()" class="text-white text-xs px-4 py-2 rounded-full font-bold" style="background:#00A3E0">全部發完</button>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 shrink-0">
+                <div id="modalSummary" class="text-sm font-bold text-slate-600 text-center mb-2"></div>
+                <button id="markAllBtn" onclick="toggleAll()"
+                    class="w-full py-3 rounded-xl font-black text-base flex items-center justify-center gap-2 active:scale-[0.98] transition"></button>
             </div>
         </div>
     </div>
@@ -165,7 +166,7 @@
 
         function renderGrid() {
             const done = books.filter(isBookDone).length;
-            document.getElementById("overallProgress").textContent = "發完 " + done + " / " + books.length + " 本";
+            document.getElementById("overallProgress").textContent = "發完 " + done + " / " + books.length + " 種";
 
             document.getElementById("bookGrid").innerHTML = books.map((book, i) => {
                 const d = doneCountFor(book);
@@ -218,7 +219,16 @@
             const d = doneCountFor(currentBook);
             const n = currentBook.students.length;
             document.getElementById("modalSummary").textContent = "已發 " + d + " / " + n + " 人";
-            document.getElementById("markAllBtn").textContent = (d === n && n > 0) ? "全部取消" : "全部發完";
+
+            // 還沒發完 → 綠色大按鈕；已發完 → 收斂成灰色，避免誤按取消
+            const btn = document.getElementById("markAllBtn");
+            const allDone = (d === n && n > 0);
+            const base = "w-full py-3 rounded-xl font-black text-base flex items-center justify-center gap-2 active:scale-[0.98] transition";
+            const check = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+            btn.className = base + (allDone ? " bg-slate-200 text-slate-500" : " text-white shadow-lg shadow-green-500/30");
+            btn.style.background = allDone ? "" : "#22c55e";
+            btn.innerHTML = allDone ? "全部取消" : check + "全部發完";
         }
 
         function toggleStudent(i, checked) {
