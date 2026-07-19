@@ -147,9 +147,19 @@
                 const coverUrl = book.coverUrl || ("https://covers.openlibrary.org/b/isbn/" + isbn + "-M.jpg");
                 const fallback = "https://via.placeholder.com/200x280/F1F5F9/94A3B8?text=No+Cover";
 
-                return `<div class="book-card bg-white rounded-2xl overflow-hidden border border-slate-200 ${isDone ? "all-done" : ""}" onclick="openModal('${book.isbn}')">
+                const isSupply = book.type === "supply";
+                const thumb = isSupply
+                    ? `<div class="h-full w-full flex flex-col items-center justify-center gap-2" style="background:#e0f2fe">
+                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                               <path d="M4 4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 2v20"/><path d="M12 7h4M12 11h4"/>
+                           </svg>
+                           <span class="text-[10px] font-black" style="color:#0284c7">文具</span>
+                       </div>`
+                    : `<img src="${coverUrl}" onerror="this.src='${fallback}'" class="h-full w-full object-cover">`;
+
+                return `<div class="book-card bg-white rounded-2xl overflow-hidden border ${isSupply ? "border-sky-300" : "border-slate-200"} ${isDone ? "all-done" : ""}" onclick="openModal('${book.isbn}')">
                     <div class="relative bg-slate-100 flex items-center justify-center overflow-hidden" style="height:160px">
-                        <img src="${coverUrl}" onerror="this.src='${fallback}'" class="h-full w-full object-cover">
+                        ${thumb}
                         ${isDone ? `<div class="absolute inset-0 flex items-center justify-center" style="background:rgba(34,197,94,0.35)">
                             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </div>` : ""}
