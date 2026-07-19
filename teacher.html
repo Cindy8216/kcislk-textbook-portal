@@ -173,9 +173,21 @@
                 const n = book.students.length;
                 const allDone = isBookDone(book);
 
-                return `<div class="book-card bg-white rounded-2xl overflow-hidden border border-slate-200 ${allDone ? "all-done" : ""}" onclick="openModal(${i})">
+                const isSupply = book.type === "supply";
+
+                // 文具沒有書封，改用圖示＋藍底，讓導師一眼分辨這不是課本
+                const thumb = isSupply
+                    ? `<div class="h-full w-full flex flex-col items-center justify-center gap-2" style="background:#e0f2fe">
+                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                               <path d="M4 4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 2v20"/><path d="M12 7h4M12 11h4"/>
+                           </svg>
+                           <span class="text-[10px] font-black" style="color:#0284c7">文具</span>
+                       </div>`
+                    : `<img src="${coverFor(book)}" onerror="this.src='${FALLBACK_COVER}'" class="h-full w-full object-cover">`;
+
+                return `<div class="book-card bg-white rounded-2xl overflow-hidden border ${isSupply ? "border-sky-300" : "border-slate-200"} ${allDone ? "all-done" : ""}" onclick="openModal(${i})">
                     <div class="relative bg-slate-100 overflow-hidden" style="height:160px">
-                        <img src="${coverFor(book)}" onerror="this.src='${FALLBACK_COVER}'" class="h-full w-full object-cover">
+                        ${thumb}
                         ${allDone ? `<div class="absolute inset-0 flex items-center justify-center" style="background:rgba(34,197,94,0.35)">
                             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </div>` : ""}
@@ -183,7 +195,7 @@
                     <div class="p-3">
                         <p class="text-[11px] font-black text-slate-800 leading-tight mb-2 line-clamp-2">${book.title}</p>
                         <div class="flex items-center justify-between">
-                            <span class="text-[10px] text-slate-400">${n} 人</span>
+                            <span class="text-[10px] text-slate-400">${n} 人${isSupply && book.qty > 1 ? "　每人 " + book.qty : ""}</span>
                             <span class="text-[11px] font-bold ${allDone ? "text-green-600" : "text-slate-500"}">${d}/${n}</span>
                         </div>
                     </div>
@@ -195,7 +207,8 @@
             currentBook = books[i];
             if (!currentBook) return;
             document.getElementById("modalTitle").textContent = currentBook.title;
-            document.getElementById("modalSub").textContent = currentClass + "　共 " + currentBook.students.length + " 人";
+            const qtyNote = (currentBook.type === "supply" && currentBook.qty > 1) ? "　每人 " + currentBook.qty + " 本" : "";
+            document.getElementById("modalSub").textContent = currentClass + "　共 " + currentBook.students.length + " 人" + qtyNote;
             renderModalBody();
             document.getElementById("modalBg").classList.remove("hidden");
         }
