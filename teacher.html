@@ -80,6 +80,33 @@
         let currentBook = null;
         let handed = {};   // { isbn: { studentKey: true } }
 
+        // ── 班級排序 ─────────────────────────────────────────────
+        // 先按年級（8→9→11→12），同年級內字母班（8A~8F）在前、數字班（801~804）在後
+        function parseClass(code) {
+            code = String(code).trim().toUpperCase();
+            // 字母班：數字開頭 + 字母，例如 8A、11C
+            const alpha = code.match(/^(\d+)([A-Z]+)$/);
+            if (alpha) {
+                return { grade: parseInt(alpha[1], 10), isNumeric: false, alphaKey: alpha[2], numKey: 0 };
+            }
+            // 數字班：純數字，後兩位當班號、其餘當年級，例如 801→8年級01班、1102→11年級02班
+            if (/^\d+$/.test(code)) {
+                const grade = parseInt(code.slice(0, -2) || code, 10);
+                const numKey = parseInt(code.slice(-2), 10);
+                return { grade, isNumeric: true, alphaKey: "", numKey };
+            }
+            // 無法辨識的代碼 → 放到最後
+            return { grade: 9999, isNumeric: true, alphaKey: code, numKey: 0 };
+        }
+        function compareClass(a, b) {
+            const pa = parseClass(a), pb = parseClass(b);
+            if (pa.grade !== pb.grade) return pa.grade - pb.grade;      // 先比年級
+            if (pa.isNumeric !== pb.isNumeric) return pa.isNumeric ? 1 : -1; // 字母班在前
+            if (!pa.isNumeric) return pa.alphaKey.localeCompare(pb.alphaKey); // A→B→C
+            return pa.numKey - pb.numKey;                               // 01→02→03
+        }
+        // ─────────────────────────────────────────────────────────
+
         const storageKey = () => "kcis_handout_sy2627_" + currentClass;
         const stuKey = (s) => s.id || s.seat;
 
@@ -131,6 +158,8 @@
                 const res = await fetch(API_BASE + "?action=getClasses");
                 const classes = await res.json();
                 if (!Array.isArray(classes)) throw new Error("後端尚未提供 getClasses");
+
+                classes.sort(compareClass);   // ← 顯示前先排序
 
                 document.getElementById("classGrid").innerHTML = classes.map(c =>
                     `<a href="?class=${encodeURIComponent(c)}"
