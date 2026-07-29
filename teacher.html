@@ -33,7 +33,7 @@
     <main id="classPicker" class="hidden max-w-4xl mx-auto p-4 mt-6">
         <h1 class="text-slate-800 font-black text-lg mb-1">請選擇你的班級</h1>
         <p class="text-slate-400 text-xs mb-4">選好之後可以把網址存成書籤，下次直接進入</p>
-        <div id="classGrid" class="grid grid-cols-3 sm:grid-cols-5 gap-2"></div>
+        <div id="classGrid"></div>
     </main>
 
     <!-- 書封列表 -->
@@ -161,10 +161,29 @@
 
                 classes.sort(compareClass);   // ← 顯示前先排序
 
-                document.getElementById("classGrid").innerHTML = classes.map(c =>
-                    `<a href="?class=${encodeURIComponent(c)}"
-                        class="bg-white border-2 border-slate-200 rounded-xl py-4 text-center font-black text-slate-700 hover:border-sky-400 hover:text-sky-500">${c}</a>`
-                ).join("");
+                // 依年級分組，每個年級自己一個區塊、自己一排
+                const groups = {}, order = [];
+                classes.forEach(c => {
+                    const g = parseClass(c).grade;
+                    if (!groups[g]) { groups[g] = []; order.push(g); }
+                    groups[g].push(c);
+                });
+                const gradeLabel = g => (g >= 1 && g <= 12) ? (g + " 年級") : "其他";
+
+                document.getElementById("classGrid").innerHTML = order.map(g => `
+                    <section class="mb-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-xs font-black text-white px-2.5 py-1 rounded-md" style="background:#00A3E0">${gradeLabel(g)}</span>
+                            <span class="h-px flex-1 bg-slate-200"></span>
+                        </div>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            ${groups[g].map(c =>
+                                `<a href="?class=${encodeURIComponent(c)}"
+                                    class="bg-white border-2 border-slate-200 rounded-xl py-4 text-center font-black text-slate-700 hover:border-sky-400 hover:text-sky-500 transition">${c}</a>`
+                            ).join("")}
+                        </div>
+                    </section>
+                `).join("");
 
                 document.getElementById("loading").classList.add("hidden");
                 document.getElementById("classPicker").classList.remove("hidden");
