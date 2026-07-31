@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>發書名單（列印）| KCIS IPD SY26-27</title>
+<style>
+  :root { --blue:#00A3E0; --dark:#334155; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif; background:#e5e7eb; color:#0f172a; }
+
+  /* ---- 控制列（列印時隱藏） ---- */
+  .bar { position:sticky; top:0; z-index:10; background:var(--blue); color:#fff; padding:10px 16px;
+         display:flex; align-items:center; gap:12px; flex-wrap:wrap; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+  .bar b { font-size:16px; letter-spacing:.5px; }
+  .bar .tag { background:rgba(255,255,255,.2); font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; }
+  .bar select { padding:6px 10px; border-radius:8px; border:none; font-size:14px; font-weight:700; color:#0f172a; }
+  .bar button { margin-left:auto; background:#fff; color:var(--blue); border:none; padding:8px 18px;
+                border-radius:20px; font-weight:800; font-size:14px; cursor:pointer; }
+  .bar button:hover { background:#f0f9ff; }
+  .bar .status { font-size:13px; opacity:.9; }
+
+  /* ---- 文件內容 ---- */
+  #doc { max-width:900px; margin:20px auto; padding:0 12px; }
+  .class-page { background:#fff; padding:24px 26px; margin-bottom:22px; border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  .cls-head { font-size:20px; font-weight:800; }
+  .cls-sub { font-size:12px; color:#666; margin:3px 0 10px; }
+  .reminder { background:#fef3c7; color:#92400e; border:1px solid #f59e0b; border-radius:5px;
+              padding:7px 12px; font-weight:800; font-size:13px; margin-bottom:10px; }
+  .instruction { font-size:12px; color:#475569; margin-bottom:14px; }
+
+  .book-block { margin-bottom:14px; break-inside:avoid; }
+  .book-bar { background:var(--blue); color:#fff; font-weight:700; font-size:14px; padding:5px 10px; border-radius:4px 4px 0 0; }
+  table.stu { width:100%; border-collapse:collapse; font-size:13px; }
+  table.stu th { background:var(--dark); color:#fff; font-weight:700; padding:5px 6px; border:.5px solid #cbd5e1; }
+  table.stu td { padding:4px 6px; border:.5px solid #cbd5e1; }
+  table.stu tbody tr:nth-child(even) { background:#f8fafc; }
+  .ctr { text-align:center; }
+  .chk { display:inline-block; width:15px; height:15px; border:1.6px solid var(--dark); border-radius:3px; vertical-align:middle; }
+
+  .sign { margin-top:16px; padding-top:10px; border-top:1px dashed #cbd5e1; font-size:14px; font-weight:700; }
+  .sign .line { display:inline-block; border-bottom:1px solid #334155; min-width:180px; margin:0 6px; }
+  .sign .date { display:inline-block; border-bottom:1px solid #334155; min-width:110px; margin:0 6px; }
+
+  #loading { text-align:center; color:#64748b; padding:60px 0; font-size:14px; }
+
+  /* ---- 列印 ---- */
+  @page { size:A4; margin:13mm; }
+  @media print {
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    body { background:#fff; }
+    .no-print { display:none !important; }
+    #doc { max-width:none; margin:0; padding:0; }
+    .class-page { box-shadow:none; border-radius:0; padding:0; margin:0; break-after:page; }
+    .class-page:last-child { break-after:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar no-print">
+  <b>KCIS 發書名單</b>
+  <span class="tag">SY26-27</span>
+  <label style="font-size:13px;font-weight:700;">班級：</label>
+  <select id="scope" onchange="render()">
+    <option value="__NUM__">全部數字班</option>
+  </select>
+  <span class="status" id="status"></span>
+  <button onclick="window.print()">🖨 列印 / 存 PDF</button>
+</div>
+
+<div id="doc"><div id="loading">連線中，載入班級資料…</div></div>
+
+<script>
+const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_knuNkj3LpCmnfJPXK8r4GM-MdUUfwVys1YMw7T-uY59Y-gQ/exec";
+const TODAY = new Date().toLocaleDateString("zh-TW", { year:"numeric", month:"2-digit", day:"2-digit" });
+
+let allClasses = [];
+let numericClasses = [];
+const cache = {};  // hr -> getClassBooks 結果
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function isNumeric(hr){ return /^\d+$/.test(String(hr)); }
+function seatNum(s){ const n=parseInt(s,10); return isNaN(n)?9999:n; }
+
+async function init(){
+  try{
+    const res = await fetch(API_BASE + "?action=getClasses");
+    allClasses = await res.json();
+    numericClasses = allClasses.filter(isNumeric).sort((a,b)=>parseInt(a)-parseInt(b));
+    // 建立下拉：全部數字班 + 每個班
+    const sel = document.getElementById("scope");
+    sel.innerHTML = '<option value="__NUM__">全部數字班</option>'
+      + numericClasses.map(c=>`<option value="${c}">${c} 班</option>`).join("")
+      + '<optgroup label="其他班級">'
+      + allClasses.filter(c=>!isNumeric(c)).sort().map(c=>`<option value="${c}">${c} 班</option>`).join("")
+      + '</optgroup>';
+    render();
+  }catch(e){
+    document.getElementById("doc").innerHTML = '<div id="loading">載入失敗，請重新整理頁面</div>';
+  }
+}
+
+async function getClass(hr){
+  if(cache[hr]) return cache[hr];
+  const res = await fetch(API_BASE + "?action=getClassBooks&class=" + encodeURIComponent(hr));
+  cache[hr] = await res.json();
+  return cache[hr];
+}
+
+async function render(){
+  const scope = document.getElementById("scope").value;
+  const list = scope === "__NUM__" ? numericClasses : [scope];
+  document.getElementById("doc").innerHTML = '<div id="loading">載入中…</div>';
+  document.getElementById("status").textContent = "載入 " + list.length + " 個班…";
+
+  const results = await Promise.all(list.map(getClass));
+  const html = list.map((hr,i)=>classSection(hr, results[i])).join("");
+  document.getElementById("doc").innerHTML = html || '<div id="loading">此班沒有資料</div>';
+  document.getElementById("status").textContent = "共 " + list.length + " 個班，可直接列印";
+}
+
+function classSection(hr, res){
+  const books = (res.books||[]).filter(b=>b.type==="book").sort((a,b)=>a.title.localeCompare(b.title));
+  const supplies = (res.books||[]).filter(b=>b.type==="supply");
+  const count = res.studentCount || 0;
+
+  const reminder = supplies.map(s=>{
+    const cnt = s.students ? s.students.length : count;
+    const q = s.qty || 1;
+    return `${esc(s.title)}：每人 ${q} 本，全班 ${cnt} 人 → 共 ${q*cnt} 本`;
+  }).join("；");
+
+  const booksHTML = books.map(b=>{
+    const studs = (b.students||[]).slice().sort((x,y)=>seatNum(x.seat)-seatNum(y.seat));
+    const rows = studs.map(s=>`<tr>
+        <td class="ctr">${esc(s.seat)}</td>
+        <td>${esc(s.name)}</td>
+        <td>${esc(s.en)}</td>
+        <td class="ctr">${esc(s.id)}</td>
+        <td class="ctr"><span class="chk"></span></td>
+      </tr>`).join("");
+    return `<div class="book-block">
+        <div class="book-bar">《${esc(b.title)}》　領書 ${studs.length} 人　ISBN ${esc(b.isbn)}</div>
+        <table class="stu">
+          <thead><tr><th style="width:52px">座號</th><th>中文姓名</th><th>英文名</th><th style="width:90px">學號</th><th style="width:56px">勾選</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join("");
+
+  return `<section class="class-page">
+      <div class="cls-head">${esc(hr)} 班　發書名單（依書分）</div>
+      <div class="cls-sub">列印日期：${TODAY}　｜　全班 ${count} 人　｜　書種 ${books.length} 種</div>
+      ${reminder ? `<div class="reminder">📓 文具提醒　${reminder}</div>` : ""}
+      <div class="instruction">說明：請導師發放後，於每位學生「勾選」欄打勾；筆記本全班每人 1 本（見上方提醒）。全部發放完畢後於下方簽名交回 IPD。</div>
+      ${booksHTML}
+      <div class="sign">導師簽名：<span class="line"></span>　日期：<span class="date"></span></div>
+    </section>`;
+}
+
+init();
+</script>
+</body>
+</html>
