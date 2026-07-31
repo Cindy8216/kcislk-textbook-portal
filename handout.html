@@ -37,6 +37,7 @@
   table.stu tbody tr:nth-child(even) { background:#f8fafc; }
   .ctr { text-align:center; }
   .chk { display:inline-block; width:15px; height:15px; border:1.6px solid var(--dark); border-radius:3px; vertical-align:middle; }
+  .ebk { color:#94a3b8; font-weight:700; }
 
   .sign { margin-top:16px; padding-top:10px; border-top:1px dashed #cbd5e1; font-size:14px; font-weight:700; }
   .sign .line { display:inline-block; border-bottom:1px solid #334155; min-width:180px; margin:0 6px; }
@@ -63,9 +64,10 @@
   <span class="tag">SY26-27</span>
   <label style="font-size:13px;font-weight:700;">班級：</label>
   <select id="scope" onchange="render()">
-    <option value="__NUM__">全部數字班</option>
+    <option value="__NUM__">全部雙語班</option>
   </select>
   <span class="status" id="status"></span>
+  <span class="hint" style="font-size:12px;opacity:.85;">選「全部…」可一次印多班</span>
   <button onclick="window.print()">🖨 列印 / 存 PDF</button>
 </div>
 
@@ -76,24 +78,57 @@ const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_
 const TODAY = new Date().toLocaleDateString("zh-TW", { year:"numeric", month:"2-digit", day:"2-digit" });
 
 let allClasses = [];
-let numericClasses = [];
+let numericClasses = [];   // 雙語班（純數字）
+let letterClasses = [];    // 留學班（含字母）
 const cache = {};  // hr -> getClassBooks 結果
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function isNumeric(hr){ return /^\d+$/.test(String(hr)); }
 function seatNum(s){ const n=parseInt(s,10); return isNaN(n)?9999:n; }
 
+// 純電子書（有 EBOOK/電子書字樣、但非「實體書+電子書」）→ 不用勾選
+function isEbookOnly(title){
+  const t = String(title||"");
+  if (t.indexOf("實體書") !== -1) return false;
+  return /EBOOK/i.test(t) || t.indexOf("電子書") !== -1;
+}
+
+// 筆記本提醒：多種同為每人1本、同班人數時合併成一句
+function reminderText(supplies, count){
+  if(!supplies || !supplies.length) return "";
+  const cnts = supplies.map(s=> s.students ? s.students.length : count);
+  const qtys = supplies.map(s=> s.qty || 1);
+  const total = supplies.reduce((sum,s,i)=> sum + qtys[i]*cnts[i], 0);
+  if(supplies.length === 1){
+    return `${esc(supplies[0].title)}：每人 ${qtys[0]} 本，全班 ${cnts[0]} 人 → 共 ${total} 本`;
+  }
+  const sameQty = qtys.every(q=>q===qtys[0]);
+  const sameCnt = cnts.every(c=>c===cnts[0]);
+  if(sameQty && sameCnt){
+    const pre = supplies.map(s=> String(s.title).replace(/筆記本$/,""));
+    const joined = pre.slice(0,-1).join("、") + "及" + pre[pre.length-1];
+    return `${joined}筆記本：每人各 ${qtys[0]} 本，全班 ${cnts[0]} 人 → 共 ${total} 本`;
+  }
+  return supplies.map((s,i)=> `${esc(s.title)}：每人 ${qtys[i]} 本，全班 ${cnts[i]} 人 → 共 ${qtys[i]*cnts[i]} 本`).join("；");
+}
+
 async function init(){
   try{
     const res = await fetch(API_BASE + "?action=getClasses");
     allClasses = await res.json();
     numericClasses = allClasses.filter(isNumeric).sort((a,b)=>parseInt(a)-parseInt(b));
-    // 建立下拉：全部數字班 + 每個班
+    letterClasses = allClasses.filter(c=>!isNumeric(c)).sort();
+    // 建立下拉：全部班級 / 全部雙語班 / 全部留學班 + 各單班
     const sel = document.getElementById("scope");
-    sel.innerHTML = '<option value="__NUM__">全部數字班</option>'
+    sel.innerHTML =
+        '<option value="__ALL__">全部班級</option>'
+      + '<option value="__NUM__" selected>全部雙語班</option>'
+      + '<option value="__ALPHA__">全部留學班</option>'
+      + '<optgroup label="雙語班（單班）">'
       + numericClasses.map(c=>`<option value="${c}">${c} 班</option>`).join("")
-      + '<optgroup label="其他班級">'
-      + allClasses.filter(c=>!isNumeric(c)).sort().map(c=>`<option value="${c}">${c} 班</option>`).join("")
+      + '</optgroup>'
+      + '<optgroup label="留學班（單班）">'
+      + letterClasses.map(c=>`<option value="${c}">${c} 班</option>`).join("")
       + '</optgroup>';
     render();
   }catch(e){
@@ -110,7 +145,11 @@ async function getClass(hr){
 
 async function render(){
   const scope = document.getElementById("scope").value;
-  const list = scope === "__NUM__" ? numericClasses : [scope];
+  let list;
+  if (scope === "__ALL__") list = numericClasses.concat(letterClasses);
+  else if (scope === "__NUM__") list = numericClasses;
+  else if (scope === "__ALPHA__") list = letterClasses;
+  else list = [scope];
   document.getElementById("doc").innerHTML = '<div id="loading">載入中…</div>';
   document.getElementById("status").textContent = "載入 " + list.length + " 個班…";
 
@@ -125,23 +164,21 @@ function classSection(hr, res){
   const supplies = (res.books||[]).filter(b=>b.type==="supply");
   const count = res.studentCount || 0;
 
-  const reminder = supplies.map(s=>{
-    const cnt = s.students ? s.students.length : count;
-    const q = s.qty || 1;
-    return `${esc(s.title)}：每人 ${q} 本，全班 ${cnt} 人 → 共 ${q*cnt} 本`;
-  }).join("；");
+  const reminder = reminderText(supplies, count);
 
   const booksHTML = books.map(b=>{
+    const ebook = isEbookOnly(b.title);
     const studs = (b.students||[]).slice().sort((x,y)=>seatNum(x.seat)-seatNum(y.seat));
     const rows = studs.map(s=>`<tr>
         <td class="ctr">${esc(s.seat)}</td>
         <td>${esc(s.name)}</td>
         <td>${esc(s.en)}</td>
         <td class="ctr">${esc(s.id)}</td>
-        <td class="ctr"><span class="chk"></span></td>
+        <td class="ctr">${ebook ? '<span class="ebk">—</span>' : '<span class="chk"></span>'}</td>
       </tr>`).join("");
+    const barNote = ebook ? '　·　電子書（無實體、免勾選）' : '';
     return `<div class="book-block">
-        <div class="book-bar">《${esc(b.title)}》　領書 ${studs.length} 人　ISBN ${esc(b.isbn)}</div>
+        <div class="book-bar">《${esc(b.title)}》　領書 ${studs.length} 人　ISBN ${esc(b.isbn)}${barNote}</div>
         <table class="stu">
           <thead><tr><th style="width:52px">座號</th><th>中文姓名</th><th>英文名</th><th style="width:90px">學號</th><th style="width:56px">勾選</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -152,8 +189,8 @@ function classSection(hr, res){
   return `<section class="class-page">
       <div class="cls-head">${esc(hr)} 班　發書名單（依書分）</div>
       <div class="cls-sub">列印日期：${TODAY}　｜　全班 ${count} 人　｜　書種 ${books.length} 種</div>
-      ${reminder ? `<div class="reminder">📓 文具提醒　${reminder}</div>` : ""}
-      <div class="instruction">說明：請導師發放後，於每位學生「勾選」欄打勾；筆記本全班每人 1 本（見上方提醒）。全部發放完畢後於下方簽名交回 IPD。</div>
+      ${reminder ? `<div class="reminder">📓 筆記本提醒　${reminder}</div>` : ""}
+      <div class="instruction">說明：請導師發放後，於每位學生「勾選」欄打勾；筆記本每人各 1 本（見上方提醒）；標示「電子書」者無實體、免勾選。全部發放完畢後於下方簽名交回 IPD。</div>
       ${booksHTML}
       <div class="sign">導師簽名：<span class="line"></span>　日期：<span class="date"></span></div>
     </section>`;
