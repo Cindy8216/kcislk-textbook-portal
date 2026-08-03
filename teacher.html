@@ -202,14 +202,21 @@
             syncTimer = setTimeout(doSync, 4000);
         }
 
-        async function doSync() {
+        async function doSync(tries) {
             syncTimer = null;
             if (!currentClass || !books.length) return;
-            try {
-                // 用純文字送出，避開跨網域預檢（GAS 不支援 OPTIONS 預檢）
-                await fetch(API_BASE, { method: "POST", body: JSON.stringify(buildProgressPayload()) });
-                syncDirty = false;
-            } catch (e) { /* 保持 dirty，稍後補送 */ }
+            tries = tries || 3;
+            // 用純文字送出，避開跨網域預檢（GAS 不支援 OPTIONS 預檢）
+            const bodyStr = JSON.stringify(buildProgressPayload());
+            for (let k = 0; k < tries; k++) {
+                try {
+                    const text = await (await fetch(API_BASE, { method: "POST", body: bodyStr })).text();
+                    const r = JSON.parse(text);
+                    if (r && r.ok) { syncDirty = false; return; }   // 確認真的寫成功才算數
+                } catch (e) { /* 非 JSON 或網路錯 → 重試 */ }
+                await new Promise(res => setTimeout(res, 800 * (k + 1)));
+            }
+            /* 三次都沒成功：保持 dirty，下次打勾或關頁面時再補送 */
         }
 
         // 關閉或切走分頁前，把還沒送出的進度用 sendBeacon 補送一次
@@ -219,6 +226,23 @@
             }
         });
         // ─────────────────────────────────────────────────────────
+
+        // Apps Script 偶爾會回傳 HTML 錯誤頁而不是 JSON（冷啟動或尖峰時）。
+        // 收到非 JSON 就稍等後自動重試，開學同時多人使用也穩。
+        async function fetchJson(url, opts, tries) {
+            tries = tries || 3;
+            let lastErr;
+            for (let k = 0; k < tries; k++) {
+                try {
+                    const res = await fetch(url, opts);
+                    const text = await res.text();
+                    try { return JSON.parse(text); }
+                    catch (e) { lastErr = new Error("後端暫時忙碌，正在重試…"); }
+                } catch (e) { lastErr = e; }
+                await new Promise(r => setTimeout(r, 600 * (k + 1)));
+            }
+            throw lastErr || new Error("載入失敗");
+        }
 
         function showLoading(msg) {
             const el = document.getElementById("loading");
@@ -237,8 +261,7 @@
         async function showClassPicker() {
             showLoading("載入班級中...");
             try {
-                const res = await fetch(API_BASE + "?action=getClasses");
-                const classes = await res.json();
+                const classes = await fetchJson(API_BASE + "?action=getClasses");
                 if (!Array.isArray(classes)) throw new Error("後端尚未提供 getClasses");
 
                 classes.sort(compareClass);   // ← 顯示前先排序
@@ -278,8 +301,7 @@
             showLoading("載入 " + currentClass + " 的書單...");
             loadHanded();
             try {
-                const res = await fetch(API_BASE + "?action=getClassBooks&class=" + encodeURIComponent(currentClass));
-                const data = await res.json();
+                const data = await fetchJson(API_BASE + "?action=getClassBooks&class=" + encodeURIComponent(currentClass));
                 if (data.error) throw new Error(data.error);
                 if (!Array.isArray(data.books)) throw new Error("後端尚未提供 getClassBooks");
                 if (data.books.length === 0) throw new Error("查無 " + currentClass + " 的書單，請確認班級代碼");

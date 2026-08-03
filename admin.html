@@ -68,11 +68,26 @@
 
         let expanded = {};   // { class: true } 記住展開狀態
 
+        // Apps Script 偶爾回傳 HTML 錯誤頁而非 JSON，收到非 JSON 就自動重試
+        async function fetchJson(url, tries) {
+            tries = tries || 3;
+            let lastErr;
+            for (let k = 0; k < tries; k++) {
+                try {
+                    const text = await (await fetch(url)).text();
+                    try { return JSON.parse(text); }
+                    catch (e) { lastErr = new Error("後端暫時忙碌，正在重試…"); }
+                } catch (e) { lastErr = e; }
+                await new Promise(r => setTimeout(r, 600 * (k + 1)));
+            }
+            throw lastErr || new Error("載入失敗");
+        }
+
         async function load() {
             try {
                 const [clsRes, progRes] = await Promise.all([
-                    fetch(API_BASE + "?action=getClasses").then(r => r.json()),
-                    fetch(API_BASE + "?action=getProgress").then(r => r.json())
+                    fetchJson(API_BASE + "?action=getClasses"),
+                    fetchJson(API_BASE + "?action=getProgress")
                 ]);
 
                 const allClasses = Array.isArray(clsRes) ? clsRes.slice() : [];
