@@ -29,6 +29,16 @@
         </div>
     </div>
 
+    <!-- 使用提醒（避免在公用電腦/無痕視窗點書導致紀錄遺失） -->
+    <div class="bg-amber-50 border-b border-amber-200">
+        <div class="max-w-4xl mx-auto px-4 py-2 flex items-start gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p class="text-[11px] leading-snug text-amber-800">
+                請用<span class="font-black">您個人的電腦</span>點書並<span class="font-black">加入書籤</span>，下次直接進入；請勿使用<span class="font-black">無痕視窗</span>，發書過程請勿中途換裝置，以免勾選紀錄遺失。
+            </p>
+        </div>
+    </div>
+
     <!-- 班級選擇（沒帶 ?class= 時顯示） -->
     <main id="classPicker" class="hidden max-w-4xl mx-auto p-4 mt-6">
         <h1 class="text-slate-800 font-black text-lg mb-1">請選擇你的班級</h1>
@@ -163,6 +173,53 @@
         }
         const FALLBACK_COVER = "https://via.placeholder.com/200x280/F1F5F9/94A3B8?text=No+Cover";
 
+        // ── 進度同步（回傳雲端給管理者看）─────────────────────────
+        // 老師端不即時寫：停手 4 秒才彙整送一次，降低開學尖峰對後端的壓力。
+        // 送失敗不影響老師（本機仍是主紀錄），下次打勾或關頁面時自動補送。
+        let syncTimer = null;
+        let syncDirty = false;
+
+        function buildProgressPayload() {
+            return {
+                action: "saveProgress",
+                "class": currentClass,
+                studentCount: books.reduce((m, b) => Math.max(m, b.students.length), 0),
+                updatedAt: Date.now(),
+                books: books.map(b => ({
+                    isbn: b.isbn,
+                    title: b.title,
+                    subject: b.subject || "",
+                    type: b.type || "book",
+                    done: doneCountFor(b),
+                    total: b.students.length
+                }))
+            };
+        }
+
+        function scheduleSync() {
+            syncDirty = true;
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(doSync, 4000);
+        }
+
+        async function doSync() {
+            syncTimer = null;
+            if (!currentClass || !books.length) return;
+            try {
+                // 用純文字送出，避開跨網域預檢（GAS 不支援 OPTIONS 預檢）
+                await fetch(API_BASE, { method: "POST", body: JSON.stringify(buildProgressPayload()) });
+                syncDirty = false;
+            } catch (e) { /* 保持 dirty，稍後補送 */ }
+        }
+
+        // 關閉或切走分頁前，把還沒送出的進度用 sendBeacon 補送一次
+        window.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden" && syncDirty && currentClass && books.length) {
+                try { navigator.sendBeacon(API_BASE, JSON.stringify(buildProgressPayload())); syncDirty = false; } catch (e) {}
+            }
+        });
+        // ─────────────────────────────────────────────────────────
+
         function showLoading(msg) {
             const el = document.getElementById("loading");
             el.textContent = msg;
@@ -233,6 +290,7 @@
                 renderGrid();
                 document.getElementById("loading").classList.add("hidden");
                 document.getElementById("bookView").classList.remove("hidden");
+                scheduleSync();   // 開班先回報一次目前進度（含本機既有紀錄）
             } catch (e) {
                 showLoading("載入失敗：" + e.message);
             }
@@ -347,6 +405,7 @@
             setHanded(currentBook.isbn, currentBook.students[i], checked);
             renderModalBody();
             renderGrid();
+            scheduleSync();
         }
 
         function toggleAll() {
@@ -354,6 +413,7 @@
             currentBook.students.forEach(s => setHanded(currentBook.isbn, s, !allDone));
             renderModalBody();
             renderGrid();
+            scheduleSync();
         }
 
         function resetClass() {
@@ -361,6 +421,7 @@
             handed = {};
             saveHanded();
             renderGrid();
+            scheduleSync();
         }
 
         function closeModal() {
