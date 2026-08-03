@@ -38,7 +38,7 @@
 
     <!-- 書封列表 -->
     <main id="bookView" class="hidden max-w-4xl mx-auto p-4 mt-4">
-        <div id="bookGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+        <div id="bookGrid"></div>
         <div class="text-center mt-8">
             <button onclick="resetClass()" class="text-slate-400 text-xs underline">重設本班發書紀錄</button>
         </div>
@@ -104,6 +104,31 @@
             if (pa.isNumeric !== pb.isNumeric) return pa.isNumeric ? 1 : -1; // 字母班在前
             if (!pa.isNumeric) return pa.alphaKey.localeCompare(pb.alphaKey); // A→B→C
             return pa.numKey - pb.numKey;                               // 01→02→03
+        }
+        // ─────────────────────────────────────────────────────────
+
+        // ── 科目排序＋分組 ────────────────────────────────────────
+        // 後端會在每本書帶 subject（讀 Distribution 的 F 欄，值為 English/Math/Science/Social Studies）
+        // 筆記本沒有 subject，用 type === "supply" 判斷，一律排最後
+        const SUBJECT_ORDER = { "english": 1, "math": 2, "science": 3, "social studies": 4 };
+        const SUBJECT_LABEL = { "english": "英文", "math": "數學", "science": "自然", "social studies": "社會", "notebook": "筆記本" };
+        function subjectKey(book) {
+            if (book.type === "supply") return "notebook";
+            return String(book.subject || "").trim().toLowerCase();
+        }
+        function subjectRank(book) {
+            if (book.type === "supply") return 99;                 // 筆記本永遠最後
+            return SUBJECT_ORDER[subjectKey(book)] || 90;          // 沒對到的科目排在四科之後、筆記本之前
+        }
+        function subjectLabel(book) {
+            return SUBJECT_LABEL[subjectKey(book)] || (book.subject || "其他");
+        }
+        function sortBooksBySubject(list) {
+            list.sort((a, b) => {
+                const ra = subjectRank(a), rb = subjectRank(b);
+                if (ra !== rb) return ra - rb;
+                return String(a.title).localeCompare(String(b.title)); // 同科目內照書名
+            });
         }
         // ─────────────────────────────────────────────────────────
 
@@ -203,6 +228,7 @@
                 if (data.books.length === 0) throw new Error("查無 " + currentClass + " 的書單，請確認班級代碼");
 
                 books = data.books;
+                sortBooksBySubject(books);   // ← 依科目排序：英→數→自→社→筆記本
                 document.getElementById("classBadge").textContent = currentClass;
                 renderGrid();
                 document.getElementById("loading").classList.add("hidden");
@@ -212,43 +238,68 @@
             }
         }
 
+        // 單張書卡（i 是在 books 陣列裡的全域索引，openModal 要用）
+        function bookCardHtml(book, i) {
+            const d = doneCountFor(book);
+            const n = book.students.length;
+            const allDone = isBookDone(book);
+
+            const isSupply = book.type === "supply";
+
+            // 文具沒有書封，改用圖示＋藍底，讓導師一眼分辨這不是課本
+            const thumb = isSupply
+                ? `<div class="h-full w-full flex flex-col items-center justify-center gap-2" style="background:#e0f2fe">
+                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                           <path d="M4 4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 2v20"/><path d="M12 7h4M12 11h4"/>
+                       </svg>
+                       <span class="text-[10px] font-black" style="color:#0284c7">筆記本</span>
+                   </div>`
+                : `<img src="${coverFor(book)}" onerror="this.src='${FALLBACK_COVER}'" class="h-full w-full object-cover">`;
+
+            return `<div class="book-card bg-white rounded-2xl overflow-hidden border ${isSupply ? "border-sky-300" : "border-slate-200"} ${allDone ? "all-done" : ""}" onclick="openModal(${i})">
+                <div class="relative bg-slate-100 overflow-hidden" style="height:160px">
+                    ${thumb}
+                    ${allDone ? `<div class="absolute inset-0 flex items-center justify-center" style="background:rgba(34,197,94,0.35)">
+                        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>` : ""}
+                </div>
+                <div class="p-3">
+                    <p class="text-[11px] font-black text-slate-800 leading-tight mb-2 line-clamp-2">${book.title}</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] text-slate-400">${n} 人${isSupply && book.qty > 1 ? "　每人 " + book.qty : ""}</span>
+                        <span class="text-[11px] font-bold ${allDone ? "text-green-600" : "text-slate-500"}">${d}/${n}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
         function renderGrid() {
             const done = books.filter(isBookDone).length;
             document.getElementById("overallProgress").textContent = "發完 " + done + " / " + books.length + " 種";
 
-            document.getElementById("bookGrid").innerHTML = books.map((book, i) => {
-                const d = doneCountFor(book);
-                const n = book.students.length;
-                const allDone = isBookDone(book);
+            // 依科目分組（books 已照科目排序，同科目一定相鄰）
+            const groups = [];
+            books.forEach((book, i) => {
+                const key = subjectKey(book);
+                let g = groups.length ? groups[groups.length - 1] : null;
+                if (!g || g.key !== key) {
+                    g = { key: key, label: subjectLabel(book), items: [] };
+                    groups.push(g);
+                }
+                g.items.push({ book, i });
+            });
 
-                const isSupply = book.type === "supply";
-
-                // 文具沒有書封，改用圖示＋藍底，讓導師一眼分辨這不是課本
-                const thumb = isSupply
-                    ? `<div class="h-full w-full flex flex-col items-center justify-center gap-2" style="background:#e0f2fe">
-                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                               <path d="M4 4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 2v20"/><path d="M12 7h4M12 11h4"/>
-                           </svg>
-                           <span class="text-[10px] font-black" style="color:#0284c7">筆記本</span>
-                       </div>`
-                    : `<img src="${coverFor(book)}" onerror="this.src='${FALLBACK_COVER}'" class="h-full w-full object-cover">`;
-
-                return `<div class="book-card bg-white rounded-2xl overflow-hidden border ${isSupply ? "border-sky-300" : "border-slate-200"} ${allDone ? "all-done" : ""}" onclick="openModal(${i})">
-                    <div class="relative bg-slate-100 overflow-hidden" style="height:160px">
-                        ${thumb}
-                        ${allDone ? `<div class="absolute inset-0 flex items-center justify-center" style="background:rgba(34,197,94,0.35)">
-                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>` : ""}
+            document.getElementById("bookGrid").innerHTML = groups.map(g => `
+                <section class="mb-6">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-xs font-black text-white px-2.5 py-1 rounded-md" style="background:#00A3E0">${g.label}</span>
+                        <span class="h-px flex-1 bg-slate-200"></span>
                     </div>
-                    <div class="p-3">
-                        <p class="text-[11px] font-black text-slate-800 leading-tight mb-2 line-clamp-2">${book.title}</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[10px] text-slate-400">${n} 人${isSupply && book.qty > 1 ? "　每人 " + book.qty : ""}</span>
-                            <span class="text-[11px] font-bold ${allDone ? "text-green-600" : "text-slate-500"}">${d}/${n}</span>
-                        </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        ${g.items.map(it => bookCardHtml(it.book, it.i)).join("")}
                     </div>
-                </div>`;
-            }).join("");
+                </section>
+            `).join("");
         }
 
         function openModal(i) {
