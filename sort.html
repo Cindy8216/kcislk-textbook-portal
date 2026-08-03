@@ -24,7 +24,10 @@
                     <span class="text-white font-black text-base tracking-tight">KCIS 分書工具</span>
                     <span class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">SY26-27</span>
                 </div>
-                <div id="overallProgress" class="text-white/90 text-sm font-bold"></div>
+                <div class="flex items-center gap-3">
+                    <span id="saveStatus" class="text-[11px] font-bold"></span>
+                    <span id="overallProgress" class="text-white/90 text-sm font-bold"></span>
+                </div>
             </div>
             <div class="flex gap-2">
                 <input id="searchBox" type="text" placeholder="搜尋書名或掃 ISBN 條碼..." oninput="renderGrid()" onkeydown="handleSearchKey(event)"
@@ -85,6 +88,7 @@
     <script>
         const API_BASE = "https://script.google.com/macros/s/AKfycbwmKGOz4eSzEuyt65P6T2_knuNkj3LpCmnfJPXK8r4GM-MdUUfwVys1YMw7T-uY59Y-gQ/exec";
         const STORAGE_KEY = "kcis_sort_sy2627";
+        const MIGRATED_KEY = "kcis_sort_migrated";
 
         let allBooks = [];
         let currentBook = null;
@@ -97,7 +101,62 @@
         function savePlaced(isbn, hr, val) {
             if (!placed[isbn]) placed[isbn] = {};
             placed[isbn][hr] = val;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(placed));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(placed)); // 本機鏡像
+            markDirty(isbn, hr, val);   // 排入雲端同步
+        }
+
+        // ===== 雲端同步（共用進度，存後端）=====
+        let pending = {};        // {isbn:{hr:qty}} 待送
+        let saveTimer = null;
+        let saving = false;
+
+        function setSaveStatus(s) {
+            const el = document.getElementById("saveStatus");
+            if (!el) return;
+            if (s === "saving")     { el.textContent = "● 儲存中…";       el.style.color = "#fef9c3"; }
+            else if (s === "saved") { el.textContent = "✓ 已存雲端";       el.style.color = "#bbf7d0"; }
+            else if (s === "error") { el.textContent = "⚠ 儲存失敗，重試中"; el.style.color = "#fecaca"; }
+            else                    { el.textContent = ""; }
+        }
+
+        function markDirty(isbn, hr, qty) {
+            if (!pending[isbn]) pending[isbn] = {};
+            pending[isbn][hr] = qty;
+            scheduleFlush();
+        }
+
+        function scheduleFlush() {
+            setSaveStatus("saving");
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(flushSaves, 600);
+        }
+
+        async function flushSaves() {
+            if (saving) { scheduleFlush(); return; }
+            const batch = pending;
+            pending = {};
+            const isbns = Object.keys(batch);
+            if (isbns.length === 0) { setSaveStatus("saved"); return; }
+            saving = true;
+            try {
+                for (const isbn of isbns) {
+                    const url = API_BASE + "?action=savePlacedBatch&isbn=" + encodeURIComponent(isbn)
+                              + "&data=" + encodeURIComponent(JSON.stringify(batch[isbn]));
+                    const j = await fetch(url).then(r => r.json());
+                    if (!j || !j.ok) throw new Error("save failed");
+                }
+                setSaveStatus("saved");
+            } catch (e) {
+                // 失敗：併回 pending 稍後重試
+                for (const isbn of isbns) {
+                    pending[isbn] = Object.assign({}, batch[isbn], pending[isbn] || {});
+                }
+                setSaveStatus("error");
+                setTimeout(scheduleFlush, 3000);
+            } finally {
+                saving = false;
+                if (Object.keys(pending).length) scheduleFlush();
+            }
         }
 
         function isBookDone(book) {
@@ -114,6 +173,31 @@
             try {
                 const res = await fetch(API_BASE + "?action=getDistribution");
                 allBooks = await res.json();
+
+                // 讀回雲端共用進度（失敗則沿用本機暫存）
+                try {
+                    const p = await fetch(API_BASE + "?action=getPlaced").then(r => r.json());
+                    if (p && typeof p === "object") {
+                        const serverEmpty = Object.keys(p).length === 0;
+                        const localData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+                        const localHas = Object.keys(localData).length > 0;
+                        const migrated = localStorage.getItem(MIGRATED_KEY) === "1";
+                        if (serverEmpty && localHas && !migrated) {
+                            // 首次（且從未搬過）：把本機既有進度搬上雲端
+                            placed = localData;
+                            localStorage.setItem(MIGRATED_KEY, "1");
+                            Object.keys(localData).forEach(isbn =>
+                                Object.keys(localData[isbn]).forEach(hr =>
+                                    markDirty(isbn, hr, localData[isbn][hr])));
+                        } else {
+                            // 一律以雲端為準（含重置後的「空」）
+                            placed = p;
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(placed));
+                            localStorage.setItem(MIGRATED_KEY, "1");
+                        }
+                    }
+                } catch (e2) { /* 離線就用本機鏡像 */ }
+
                 buildSupplierFilter();
                 renderGrid();
                 document.getElementById("loading").classList.add("hidden");
