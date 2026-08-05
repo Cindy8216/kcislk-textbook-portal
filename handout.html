@@ -82,6 +82,38 @@ let numericClasses = [];   // 雙語班（純數字）
 let letterClasses = [];    // 留學班（含字母）
 const cache = {};  // hr -> getClassBooks 結果
 
+// Apps Script 偶爾回傳 HTML 錯誤頁而不是 JSON（冷啟動或多班同時載入時）。
+// 收到非 JSON 就稍等後自動重試，避免整頁卡在「載入中」。
+async function fetchJson(url, tries){
+  tries = tries || 4;
+  let lastErr;
+  for (let k=0; k<tries; k++){
+    try {
+      const text = await (await fetch(url)).text();
+      try { return JSON.parse(text); }
+      catch(e){ lastErr = new Error("後端暫時忙碌"); }
+    } catch(e){ lastErr = e; }
+    await new Promise(r=>setTimeout(r, 600*(k+1)));
+  }
+  throw lastErr || new Error("載入失敗");
+}
+
+// 限制同時請求數：一次最多 limit 個，避免一口氣打十幾個把 GAS 逼爆而回錯誤頁。
+async function mapLimit(items, limit, fn){
+  const results = new Array(items.length);
+  let idx = 0;
+  async function worker(){
+    while (idx < items.length){
+      const cur = idx++;
+      results[cur] = await fn(items[cur], cur);
+    }
+  }
+  const workers = [];
+  for (let i=0; i<Math.min(limit, items.length); i++) workers.push(worker());
+  await Promise.all(workers);
+  return results;
+}
+
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function isNumeric(hr){ return /^\d+$/.test(String(hr)); }
 function seatNum(s){ const n=parseInt(s,10); return isNaN(n)?9999:n; }
@@ -114,8 +146,7 @@ function reminderText(supplies, count){
 
 async function init(){
   try{
-    const res = await fetch(API_BASE + "?action=getClasses");
-    allClasses = await res.json();
+    allClasses = await fetchJson(API_BASE + "?action=getClasses");
     numericClasses = allClasses.filter(isNumeric).sort((a,b)=>parseInt(a)-parseInt(b));
     letterClasses = allClasses.filter(c=>!isNumeric(c)).sort();
     // 建立下拉：全部班級 / 全部雙語班 / 全部留學班 + 各單班
@@ -138,8 +169,7 @@ async function init(){
 
 async function getClass(hr){
   if(cache[hr]) return cache[hr];
-  const res = await fetch(API_BASE + "?action=getClassBooks&class=" + encodeURIComponent(hr));
-  cache[hr] = await res.json();
+  cache[hr] = await fetchJson(API_BASE + "?action=getClassBooks&class=" + encodeURIComponent(hr));
   return cache[hr];
 }
 
@@ -153,10 +183,16 @@ async function render(){
   document.getElementById("doc").innerHTML = '<div id="loading">載入中…</div>';
   document.getElementById("status").textContent = "載入 " + list.length + " 個班…";
 
-  const results = await Promise.all(list.map(getClass));
-  const html = list.map((hr,i)=>classSection(hr, results[i])).join("");
-  document.getElementById("doc").innerHTML = html || '<div id="loading">此班沒有資料</div>';
-  document.getElementById("status").textContent = "共 " + list.length + " 個班，可直接列印";
+  try {
+    // 一次最多 5 個班同時抓，個別失敗會自動重試，不會整頁卡住
+    const results = await mapLimit(list, 5, getClass);
+    const html = list.map((hr,i)=>classSection(hr, results[i])).join("");
+    document.getElementById("doc").innerHTML = html || '<div id="loading">此班沒有資料</div>';
+    document.getElementById("status").textContent = "共 " + list.length + " 個班，可直接列印";
+  } catch(e){
+    document.getElementById("doc").innerHTML = '<div id="loading">部分班級載入失敗，請按重新整理再試一次</div>';
+    document.getElementById("status").textContent = "載入失敗";
+  }
 }
 
 function classSection(hr, res){
