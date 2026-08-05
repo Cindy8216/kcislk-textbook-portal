@@ -94,6 +94,22 @@
         let currentBook = null;
         let placed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
 
+        // Apps Script 偶爾回傳 HTML 錯誤頁而不是 JSON（冷啟動或尖峰時）。
+        // 收到非 JSON 就稍等後自動重試，避免載入失敗。
+        async function fetchJson(url, tries) {
+            tries = tries || 3;
+            let lastErr;
+            for (let k = 0; k < tries; k++) {
+                try {
+                    const text = await (await fetch(url)).text();
+                    try { return JSON.parse(text); }
+                    catch (e) { lastErr = new Error("後端暫時忙碌"); }
+                } catch (e) { lastErr = e; }
+                await new Promise(r => setTimeout(r, 600 * (k + 1)));
+            }
+            throw lastErr || new Error("載入失敗");
+        }
+
         function getPlaced(isbn, hr) {
             return (placed[isbn] && placed[isbn][hr] != null) ? placed[isbn][hr] : 0;
         }
@@ -142,7 +158,7 @@
                 for (const isbn of isbns) {
                     const url = API_BASE + "?action=savePlacedBatch&isbn=" + encodeURIComponent(isbn)
                               + "&data=" + encodeURIComponent(JSON.stringify(batch[isbn]));
-                    const j = await fetch(url).then(r => r.json());
+                    const j = await fetchJson(url);
                     if (!j || !j.ok) throw new Error("save failed");
                 }
                 setSaveStatus("saved");
@@ -171,12 +187,11 @@
 
         async function init() {
             try {
-                const res = await fetch(API_BASE + "?action=getDistribution");
-                allBooks = await res.json();
+                allBooks = await fetchJson(API_BASE + "?action=getDistribution");
 
                 // 讀回雲端共用進度（失敗則沿用本機暫存）
                 try {
-                    const p = await fetch(API_BASE + "?action=getPlaced").then(r => r.json());
+                    const p = await fetchJson(API_BASE + "?action=getPlaced");
                     if (p && typeof p === "object") {
                         const serverEmpty = Object.keys(p).length === 0;
                         const localData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");

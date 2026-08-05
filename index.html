@@ -274,6 +274,22 @@
             if (tv) tv.innerHTML = `<div class="col-span-full text-center py-24">${html}</div>`;
         }
 
+        // Apps Script 偶爾回傳 HTML 錯誤頁而不是 JSON（冷啟動或尖峰時）。
+        // 收到非 JSON 就稍等後自動重試，降低第一次載入失敗的機率。
+        async function fetchJson(url, tries) {
+            tries = tries || 3;
+            let lastErr;
+            for (let k = 0; k < tries; k++) {
+                try {
+                    const text = await (await fetch(url)).text();
+                    try { return JSON.parse(text); }
+                    catch (e) { lastErr = new Error("後端暫時忙碌"); }
+                } catch (e) { lastErr = e; }
+                await new Promise(r => setTimeout(r, 600 * (k + 1)));
+            }
+            throw lastErr || new Error("載入失敗");
+        }
+
         async function init() {
             let cachedStr = null;
             try { cachedStr = localStorage.getItem(CACHE_KEY); } catch (e) {}
@@ -301,8 +317,8 @@
             // 3) 背景抓最新資料，回來再更新（內容沒變就不重畫，避免打斷操作）
             try {
                 const [bookRes, courseRes] = await Promise.all([
-                    fetch(API_BASE).then(r => r.json()),
-                    fetch(API_BASE + "?action=getCourseData").then(r => r.json())
+                    fetchJson(API_BASE),
+                    fetchJson(API_BASE + "?action=getCourseData")
                 ]);
                 const books = bookRes.map(item => fixKeys(item));
                 const freshStr = JSON.stringify({ books: books, courses: courseRes });
