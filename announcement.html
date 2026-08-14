@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>課本領取公告</title>
+<style>
+  :root {
+    --navy: #1d3557;
+    --blue: #457b9d;
+    --light-blue: #a8dadc;
+    --bg: #f5f7fa;
+    --warn-bg: #fff3f0;
+    --warn-border: #e76f51;
+    --card-bg: #ffffff;
+    --text: #22303f;
+    --muted: #5a6b7b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header .tag {
+    display: inline-block;
+    background: var(--navy);
+    color: #fff;
+    font-size: 13px;
+    letter-spacing: 2px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 24px;
+    color: var(--navy);
+    margin: 0 0 6px;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 14px;
+  }
+  .link-card {
+    background: linear-gradient(135deg, var(--navy), var(--blue));
+    color: #fff;
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 14px rgba(29,53,87,0.25);
+  }
+  .link-card .label {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-bottom: 6px;
+  }
+  .link-card a {
+    display: inline-block;
+    margin-top: 10px;
+    background: #fff;
+    color: var(--navy);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .link-card .note {
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 17px;
+    color: var(--navy);
+    margin: 0 0 12px;
+    border-left: 4px solid var(--blue);
+    padding-left: 10px;
+  }
+  .card h3 {
+    font-size: 15px;
+    color: var(--blue);
+    margin: 16px 0 8px;
+  }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid #dfe6ec;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  th {
+    background: var(--navy);
+    color: #fff;
+    font-weight: 500;
+  }
+  tr:nth-child(even) td { background: #f7fafc; }
+  .warn {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .warn h2 {
+    color: var(--warn-border);
+    border-left-color: var(--warn-border);
+  }
+  .warn strong { color: var(--warn-border); }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="tag">導師會議公告</div>
+    <h1>📚 課本領取公告</h1>
+    <p style="font-size:16px; font-weight:700; color:var(--navy); background:#eef3f8; display:inline-block; padding:10px 18px; border-radius:10px; margin-top:6px;">📅 8/31(一)開學日,請各班依下方指定時間,派4位學生到 H618 教室領取課本</p>
+  </header>
+
+  <div class="link-card">
+    <div class="label">各班發書名單查詢(點書封看班級名單)</div>
+    <a href="https://kcislk-textbook.vercel.app/teacher.html" target="_blank">開啟課本領取名單網頁 →</a>
+    <div class="note">⚠️ 網頁第一次載入需要一點時間,請耐心等待。</div>
+  </div>
+
+  <div class="card">
+    <h2>Block 1・G7–G9(8:25–9:45)</h2>
+    <p>G7–G9課本數量較多,每班配置2台推車協助搬運,故採<strong>分時段</strong>領取,每班間隔10分鐘。各年段分別依 <strong>F→E→D→C→B→A</strong> 順序領取,三個年段同時、獨立進行。</p>
+    <table>
+      <tr><th>時間</th><th>G7</th><th>G8</th><th>G9</th></tr>
+      <tr><td>8:25</td><td>7F</td><td>8F</td><td>9F</td></tr>
+      <tr><td>8:35</td><td>7E</td><td>8E</td><td>9E</td></tr>
+      <tr><td>8:45</td><td>7D</td><td>8D</td><td>9D</td></tr>
+      <tr><td>8:55</td><td>7C</td><td>8C</td><td>9C</td></tr>
+      <tr><td>9:05</td><td>7B</td><td>8B</td><td>9B</td></tr>
+      <tr><td>9:15</td><td>7A</td><td>8A</td><td>9A</td></tr>
+    </table>
+    <p style="margin-top:12px;"><strong>7F、8F、9F請於8:25準時派4位學生到H618教室</strong>領取,其餘班級請先在教室等候;每班搬完課本後,會將推車交給下一班(依F→E→D→C→B→A順序),接到推車的班級再派4位學生前往H618,老師隨同前往。表格時間僅供參考,實際仍依推車交接順序進行。</p>
+  </div>
+
+  <div class="card">
+    <h2>Block 2・G10–G12</h2>
+    <ul>
+      <li>於 Block 2 時段內自行前往 H618 領取即可,無須排定時間</li>
+      <li>請派 4 位學生,老師隨同前往</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border: 2px solid #e9a23b; background: #fff9ee;">
+    <h2 style="color:#b5730a; border-left-color:#e9a23b;">⭐ SP 雙語班・G7–G10(請特別留意)</h2>
+    <p>書量較少,時間內到 H618 領取即可,不需分時段:</p>
+    <ul>
+      <li>SP G7–G9:<strong>08:25–09:45</strong>,派4位同學至 H618 教室領取</li>
+      <li>SP G10:<strong>10:05–11:35</strong>,派4位同學至 H618 教室領取</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>留學班</h2>
+    <p>留學班學生有<strong>個人課本領取清單</strong>,請老師發下給同學核對。</p>
+  </div>
+
+  <div class="card warn">
+    <h2>⚠️ 注意事項</h2>
+    <ul>
+      <li><strong>8/31開學日僅發書,不接受退書</strong></li>
+      <li>退書時間:<strong>9/1–9/7</strong>,請至國際處辦理,<strong>逾期恕不受理</strong></li>
+    </ul>
+  </div>
+
+  <footer>如有疑問請洽國際處教學組</footer>
+
+</div>
+</body>
+</html>
