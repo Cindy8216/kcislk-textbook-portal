@@ -226,7 +226,7 @@ function classSection(hr, res){
       <div class="cls-head">${esc(hr)} 班　發書名單（依書分）</div>
       <div class="cls-sub">列印日期：${TODAY}　｜　全班 ${count} 人　｜　書種 ${books.length} 種</div>
       ${reminder ? `<div class="reminder">📓 筆記本提醒　${reminder}</div>` : ""}
-      <div class="instruction">說明：請導師發放後，於「勾選」欄打勾；筆記本每人各 1 本（見上方提醒）；標示「電子書」者無實體、免勾選。全部發放完畢後請於下方簽名交回 IPD，謝謝老師。</div>
+      <div class="instruction">說明：請導師發放後，於「勾選」欄打勾；筆記本每人各 1 本（見上方提醒）；標示「電子書」者無實體、免勾選。全部發放完畢後，請於下方簽名，並將簽收單連同未發出的書籍(開學日未到校學生的書)一併交回 IPD，謝謝老師。</div>
       ${booksHTML}
       <div class="sign">導師簽名：<span class="line"></span>　日期：<span class="date"></span></div>
     </section>`;
