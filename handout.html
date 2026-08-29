@@ -46,7 +46,7 @@
   #loading { text-align:center; color:#64748b; padding:60px 0; font-size:14px; }
 
   /* ---- 列印 ---- */
-  @page { size:A4; margin:13mm; }
+  @page { size:A4; margin:10mm; }
   @media print {
     * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     body { background:#fff; }
@@ -54,10 +54,13 @@
     #doc { max-width:none; margin:0; padding:0; }
     .class-page { box-shadow:none; border-radius:0; padding:0; margin:0; break-after:page; }
     .class-page:last-child { break-after:auto; }
-    .book-block { break-inside:auto; }
+    .book-block { break-inside:auto; margin-bottom:8px; }
     .book-bar { break-after:avoid; }
     table.stu thead { display:table-header-group; }
     table.stu tr { break-inside:avoid; }
+    table.stu th { padding:3px 6px; }
+    table.stu td { padding:2px 6px; }
+    .sign { break-inside:avoid; margin-top:8px; padding-top:6px; }
   }
 </style>
 </head>
