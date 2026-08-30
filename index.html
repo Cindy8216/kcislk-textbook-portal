@@ -38,6 +38,30 @@
         .filter-chip-ap { border-color: #EF4444; color: #EF4444; }
         .filter-chip-ap.active { background: #EF4444; color: white; border-color: #EF4444; }
 
+        /* --- 各科分級 pill 選單（選年級後，每一科各自挑分級） --- */
+        .subj-panel-hint { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+        .subj-card { display: inline-flex; flex-direction: column; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; min-width: 104px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); transition: all .2s; }
+        .subj-card-head { color: #fff; font-size: 12px; font-weight: 800; padding: 5px 10px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .subj-card-body { padding: 5px 8px; display: flex; align-items: center; justify-content: center; }
+        .subj-card-select { border: 1px solid #cbd5e1 !important; background: #fff !important; border-radius: 6px; padding: 3px 8px !important; font-size: 12px !important; font-weight: 800 !important; color: #0f172a !important; cursor: pointer; outline: none; max-width: 100%; }
+        .subj-card-static { font-size: 12px; font-weight: 800; color: #64748b; }
+        .subj-card.chosen { box-shadow: 0 2px 8px rgba(0,163,224,0.22); }
+        .subj-card.chosen .subj-card-select { border-color: var(--kcis-blue) !important; color: var(--kcis-blue) !important; }
+        .subj-group-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 8px; }
+
+        /* --- 列印 / 存 PDF 版面：螢幕上藏起來，列印時只印這一塊 --- */
+        #printArea { display: none; }
+        #printArea .pa-title { font-size: 19px; font-weight: 900; color: #0f172a; }
+        #printArea table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+        #printArea th, #printArea td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; }
+        #printArea thead th { background: #f1f5f9; }
+        @media print {
+            body { background: #fff !important; }
+            body > *:not(#printArea) { display: none !important; }
+            #printArea { display: block !important; }
+            @page { margin: 14mm; }
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -104,11 +128,19 @@
                 </nav>
             </div>
 
-            <div id="filterTextbook" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow lg:max-w-4xl mx-auto">
-                <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
-                <select id="subjectFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
-                <select id="levelFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
-                <input type="text" id="searchBox" placeholder="Global Search ISBN..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold">
+            <div id="filterTextbook" class="flex flex-col gap-3 flex-grow lg:max-w-5xl mx-auto w-full">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed"><option>Loading...</option></select>
+                    <input type="text" id="searchBox" placeholder="Global Search ISBN / Title..." class="border-2 border-slate-200 rounded-lg px-2 py-2 focus:border-kcis-blue bg-white font-bold sm:col-span-2">
+                </div>
+                <div class="flex items-center flex-wrap gap-x-3 gap-y-2">
+                    <span class="subj-panel-hint">選擇各科分級 · Pick each subject's level</span>
+                    <button type="button" id="resetLevels" class="subj-panel-hint underline hover:text-kcis-blue" style="cursor:pointer; background:none; border:none; padding:0;">Reset 重設</button>
+                    <span id="subjLegend" class="flex items-center flex-wrap gap-2 ml-auto"></span>
+                    <button type="button" id="printBtn" class="bg-kcis-blue text-white text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg hover:opacity-90" style="cursor:pointer;">🖨 列印清單 Print</button>
+                </div>
+                <div id="subjectLevelPanel" class="flex flex-wrap gap-2"></div>
+                <div id="textbookSummary" class="hidden"></div>
             </div>
 
             <div id="filterSequence" class="hidden py-2">
@@ -225,6 +257,9 @@
             </div>
         </div>
     </footer>
+
+    <!-- 列印 / 存 PDF 專用區（螢幕隱藏，列印時只印這塊） -->
+    <div id="printArea"></div>
 
     <!-- 書籍詳情彈窗 -->
     <div id="bookModal" class="hidden fixed inset-0 z-[100] items-center justify-center p-4">
@@ -393,92 +428,266 @@
             renderSequence();
         }
 
+        /* =========================================================
+           課本查詢篩選：選年級 → 各科各自挑分級（可一次看到學生全部課本）
+           subjectLevelSel[科目] = 'All' 或該科某個分級
+           ========================================================= */
+        let subjectLevelSel = {};
+
+        // 科目顯示順序：英→數→自→社→中→其他→選修
+        function subjRank(s) {
+            const t = String(s || '').toLowerCase();
+            if (t.includes('eng')) return 1;
+            if (t.includes('math')) return 2;
+            if (t.includes('sci')) return 3;
+            if (t.includes('soc')) return 4;
+            if (t.includes('chi')) return 5;
+            if (t.includes('ele')) return 8;
+            return 7;
+        }
+
+        // 分級排序：AP → Honors → 其他
+        function sortLevels(rawLevels) {
+            return rawLevels.sort((a, b) => {
+                const getRank = v => {
+                    const s = String(v).toUpperCase().trim();
+                    if (s === 'AP') return 1;
+                    if (s.includes('HONOR') || s === 'HN') return 2;
+                    return 4;
+                };
+                return getRank(a) - getRank(b) || String(a).localeCompare(String(b));
+            });
+        }
+
+        // 各科配色：英文淺黃、數學淺紫、自然淺綠、社會藍、選修藍綠(teal)、其他灰
+        //   ink  = 文字/圓點/卡片左邊條的深色    tint = pill 與標題的淡色底
+        function subjTheme(subject) {
+            const t = String(subject || '').toLowerCase();
+            if (t.includes('eng'))  return { ink: '#B45309', tint: '#FEF3C7', line: '#FDE68A' }; // 淺黃 amber
+            if (t.includes('math')) return { ink: '#7C3AED', tint: '#EDE9FE', line: '#DDD6FE' }; // 淺紫 violet
+            if (t.includes('sci'))  return { ink: '#15803D', tint: '#DCFCE7', line: '#BBF7D0' }; // 淺綠 green
+            if (t.includes('soc'))  return { ink: '#1D4ED8', tint: '#DBEAFE', line: '#BFDBFE' }; // 藍 blue
+            if (t.includes('ele'))  return { ink: '#0F766E', tint: '#CCFBF1', line: '#99F6E4' }; // 藍綠 teal
+            return { ink: '#475569', tint: '#F1F5F9', line: '#E2E8F0' };                         // 其他 slate
+        }
+
         function setupFilters() {
-            const gradeEl = document.getElementById('gradeFilter'),
-                  subjectEl = document.getElementById('subjectFilter'),
-                  levelEl = document.getElementById('levelFilter');
-            [gradeEl, subjectEl, levelEl].forEach(el => el.classList.remove('opacity-50', 'cursor-not-allowed'));
-            const grades = [...new Set(allBooks.map(b => b.grade).filter(Boolean))].sort((a,b) => parseInt(a)-parseInt(b));
+            const gradeEl = document.getElementById('gradeFilter');
+            gradeEl.classList.remove('opacity-50', 'cursor-not-allowed');
+            const grades = [...new Set(allBooks.map(b => b.grade).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
             gradeEl.innerHTML = grades.map(g => `<option value="${g}">Grade ${g}</option>`).join('');
-            gradeEl.onchange = () => {
-                const subjects = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value)).map(b => b.subject).filter(Boolean))].sort();
-                subjectEl.innerHTML = `<option value="All">All Subjects</option>` + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
-                subjectEl.onchange();
-            };
-            subjectEl.onchange = () => {
-                const rawLevels = [...new Set(allBooks.filter(b => String(b.grade) === String(gradeEl.value) && (subjectEl.value === "All" || b.subject === subjectEl.value)).map(b => b.level).filter(Boolean))];
-                const sortedLevels = rawLevels.sort((a, b) => {
-                    const getRank = v => {
-                        const s = String(v).toUpperCase().trim();
-                        if (s === 'AP') return 1;
-                        if (s.includes('HONOR') || s === 'HN') return 2;
-                        return 4;
-                    };
-                    return getRank(a) - getRank(b) || String(a).localeCompare(String(b));
-                });
-                levelEl.innerHTML = `<option value="All">All Levels</option>` + sortedLevels.map(l => `<option value="${l}">${l}</option>`).join('');
+            gradeEl.onchange = () => { buildSubjectPanel(); renderBooks(); };
+            document.getElementById('searchBox').oninput = renderBooks;
+
+            const reset = document.getElementById('resetLevels');
+            if (reset) reset.onclick = () => {
+                Object.keys(subjectLevelSel).forEach(k => subjectLevelSel[k] = 'All');
+                document.querySelectorAll('#subjectLevelPanel .subj-card-select').forEach(sel => sel.value = 'All');
+                document.querySelectorAll('#subjectLevelPanel .subj-card').forEach(p => p.classList.remove('chosen'));
                 renderBooks();
             };
-            gradeEl.dispatchEvent(new Event('change'));
-            levelEl.onchange = renderBooks;
-            document.getElementById('searchBox').oninput = renderBooks;
+
+            const pb = document.getElementById('printBtn');
+            if (pb) pb.onclick = () => window.print();
+
+            buildLegend();
+            buildSubjectPanel();
+            renderBooks();
+        }
+
+        // 頂端顏色圖例：一排小色塊對照哪個顏色是哪一科
+        const LEGEND = [['English', '英文'], ['Math', '數學'], ['Science', '自然'], ['Social Studies', '社會'], ['Electives', '選修']];
+        function buildLegend() {
+            const el = document.getElementById('subjLegend');
+            if (!el) return;
+            el.innerHTML = LEGEND.map(([en, zh]) => {
+                const th = subjTheme(en);
+                return `<span class="inline-flex items-center gap-1"><span style="width:11px;height:11px;border-radius:99px;background:${th.ink};display:inline-block"></span><span class="text-[10px] font-black" style="color:${th.ink}">${zh}</span></span>`;
+            }).join('');
+        }
+
+        // Print 價格加總：TBD/待公告(空白或TBD) 不計入、'-' 略過
+        function priceStats(list) {
+            let sum = 0, tbd = 0;
+            list.forEach(b => {
+                const raw = String(b.price == null ? '' : b.price).trim().toUpperCase();
+                if (raw === '' || raw === 'TBD') { tbd++; return; }
+                if (raw === '-') return;
+                const n = parseFloat(raw.replace(/[^0-9.]/g, ''));
+                if (isFinite(n)) sum += n;
+            });
+            return { sum: sum, tbd: tbd };
+        }
+
+        // 螢幕上的小計列
+        function updateSummary(filtered, grade, searching) {
+            const el = document.getElementById('textbookSummary');
+            if (!el) return;
+            el.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 flex flex-wrap items-center gap-x-4 gap-y-1';
+            if (searching) {
+                el.innerHTML = `<span>🔎 搜尋結果 <b>${filtered.length}</b> 本</span>`;
+                return;
+            }
+            const st = priceStats(filtered);
+            let html = `<span>Grade ${esc(String(grade))}</span><span>共 <b>${filtered.length}</b> 本</span><span>Print 合計 <b class="text-kcis-blue">NT$ ${st.sum.toLocaleString()}</b></span>`;
+            if (st.tbd > 0) html += `<span class="text-slate-400 font-bold">（另有 ${st.tbd} 本待公告，未計入）</span>`;
+            el.innerHTML = html;
+        }
+
+        // 列印/PDF 專用內容：乾淨表格＋合計
+        function updatePrintArea(filtered, grade) {
+            const el = document.getElementById('printArea');
+            if (!el) return;
+            const st = priceStats(filtered);
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate();
+            const levelLine = Object.keys(subjectLevelSel).map(s => `${s}: ${subjectLevelSel[s] || 'All'}`).join('　');
+            const sorted = filtered.slice().sort((a, b) => subjRank(a.subject) - subjRank(b.subject) || String(a.subject).localeCompare(String(b.subject)));
+            const rows = sorted.map(b => {
+                const raw = String(b.price == null ? '' : b.price).trim().toUpperCase();
+                const price = (raw === '' || raw === 'TBD') ? '待公告' : (raw === '-' ? '-' : ('NT$ ' + b.price));
+                return `<tr><td>${esc(b.subject || '')}</td><td>${esc(b.level || '')}</td><td>${esc(b.title || '')}</td><td>${esc(b.isbn || '')}</td><td style="text-align:right;white-space:nowrap">${esc(price)}</td></tr>`;
+            }).join('');
+            el.innerHTML = `
+                <div style="margin-bottom:10px">
+                    <div class="pa-title">康橋國際學校林口校區 · 中學部國際處 課本清單</div>
+                    <div style="font-size:12px;color:#475569;margin-top:4px">Grade ${esc(String(grade))}　·　${esc(dateStr)}　·　共 ${filtered.length} 本</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:2px">分級 Levels：${esc(levelLine)}</div>
+                </div>
+                <table>
+                    <thead><tr><th>Subject</th><th>Level</th><th>Title</th><th>ISBN</th><th style="text-align:right">Print</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot><tr><td colspan="4" style="text-align:right;font-weight:900">Print 合計 Total</td><td style="text-align:right;font-weight:900;white-space:nowrap">NT$ ${st.sum.toLocaleString()}</td></tr></tfoot>
+                </table>
+                ${st.tbd > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:8px">＊另有 ${st.tbd} 本價格待公告，未計入合計。</div>` : ''}
+                <div style="font-size:10px;color:#94a3b8;margin-top:14px">Kang Chiao International School Linkou Campus · IPD Portal</div>`;
+        }
+
+        // 依所選年級，為每一科建立一個分級下拉；預設全部 All
+        function buildSubjectPanel() {
+            const grade = document.getElementById('gradeFilter').value;
+            const panel = document.getElementById('subjectLevelPanel');
+            const subjects = [...new Set(allBooks.filter(b => String(b.grade) === String(grade)).map(b => b.subject).filter(Boolean))]
+                .sort((a, b) => subjRank(a) - subjRank(b) || String(a).localeCompare(String(b)));
+            subjectLevelSel = {};
+            panel.innerHTML = subjects.map(subj => {
+                subjectLevelSel[subj] = 'All';
+                const th = subjTheme(subj);
+                const levels = sortLevels([...new Set(allBooks.filter(b => String(b.grade) === String(grade) && b.subject === subj).map(b => b.level).filter(Boolean))]);
+                // 該科沒有分級 → 下方顯示靜態 All，不需下拉
+                if (levels.length === 0) {
+                    return `<div class="subj-card" style="border-color:${th.line}"><span class="subj-card-head" style="background:${th.ink}">${esc(subj)}</span><span class="subj-card-body" style="background:${th.tint}"><span class="subj-card-static">All</span></span></div>`;
+                }
+                const opts = `<option value="All">全部 All</option>` + levels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
+                return `<label class="subj-card" data-subj="${esc(subj)}" style="border-color:${th.line}"><span class="subj-card-head" style="background:${th.ink}">${esc(subj)}</span><span class="subj-card-body" style="background:${th.tint}"><select class="subj-card-select" data-subj="${esc(subj)}">${opts}</select></span></label>`;
+            }).join('');
+
+            panel.querySelectorAll('.subj-card-select').forEach(sel => {
+                sel.onchange = () => {
+                    const subj = sel.dataset.subj;
+                    subjectLevelSel[subj] = sel.value;
+                    const card = sel.closest('.subj-card');
+                    if (card) card.classList.toggle('chosen', sel.value !== 'All');
+                    renderBooks();
+                };
+            });
         }
 
         function renderBooks() {
-            const grade = document.getElementById('gradeFilter').value, searchRaw = document.getElementById('searchBox').value.trim(), keyword = searchRaw.toLowerCase().replace(/-/g, '');
+            const grade = document.getElementById('gradeFilter').value;
+            const searchRaw = document.getElementById('searchBox').value.trim();
+            const keyword = searchRaw.toLowerCase().replace(/-/g, '');
+            const searching = searchRaw.length > 0;
+
             const filtered = allBooks.filter(b => {
                 if (!b.title) return false;
-                if (searchRaw.length > 0) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
-                return String(b.grade) === String(grade) && (document.getElementById('subjectFilter').value === "All" || b.subject === document.getElementById('subjectFilter').value) && (document.getElementById('levelFilter').value === "All" || b.level === document.getElementById('levelFilter').value);
+                if (searching) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
+                if (String(b.grade) !== String(grade)) return false;
+                const sel = subjectLevelSel[b.subject];
+                if (sel == null || sel === 'All') return true;
+                const lvl = String(b.level || '').trim();
+                return lvl === '' || String(b.level) === String(sel);   // 空白分級＝共用書，一律顯示
             });
-            if(filtered.length === 0) {
-                document.getElementById('textbookView').innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching textbooks found.</div>`;
+
+            // 每次重畫都更新小計列與列印內容
+            updateSummary(filtered, grade, searching);
+            updatePrintArea(filtered, grade);
+
+            const view = document.getElementById('textbookView');
+            if (filtered.length === 0) {
+                view.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 font-bold italic">No matching textbooks found.</div>`;
                 return;
             }
-            document.getElementById('textbookView').innerHTML = filtered.map(b => {
-                const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
-                const subjColor = /english/i.test(b.subject) ? 'text-orange-500' : /social/i.test(b.subject) ? 'text-sky-400' : /math/i.test(b.subject) ? 'text-purple-600' : /science/i.test(b.subject) ? 'text-green-600' : 'text-slate-400';
 
-                const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
-                const cleanIsbn = rawIsbn.replace(/\D/g, '');
+            // 搜尋模式：一律平舖顯示
+            if (searching) {
+                view.innerHTML = filtered.map(bookCard).join('');
+                return;
+            }
 
-                let finalCoverUrl = 'https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=In-house+Resource';
-                if (b.coverurl && b.coverurl.toLowerCase().startsWith('http')) {
-                    finalCoverUrl = b.coverurl;
-                } else if (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') {
-                    finalCoverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-M.jpg`;
-                }
-
-                const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-')
-                    ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
-                    : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
-
-                const rawPrint = String(b.price || '').trim().toUpperCase();
-                const rawDigital = String(b.ebook || '').trim().toUpperCase();
-
-                const printPrice = (rawPrint === '' || rawPrint === 'TBD') ? '待公告' : (rawPrint === '-' ? '-' : `NT$ ${b.price}`);
-                const digitalPrice = (rawDigital === '' || rawDigital === '-') ? '-' : (rawDigital === 'TBD' ? '待公告' : `NT$ ${b.ebook}`);
-
-                return `
-                <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left">
-                    <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b text-center">
-                        <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-xl rounded mx-auto">
-                        <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
-                        <div class="absolute top-4 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-400">G${b.grade}</div>
-                        ${b.level ? `<div class="absolute bottom-4 right-4 bg-kcis-blue text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">${b.level}</div>` : ''}
-                    </div>
-                    <div class="p-6 flex-grow flex flex-col">
-                        <span class="text-[10px] font-black ${subjColor} uppercase tracking-widest mb-1 block">${b.subject || ''}</span>
-                        <h2 class="font-black text-slate-800 text-lg leading-tight mb-3">${b.title}</h2>
-                        ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight"><p class="text-[14px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-4"></div>'}
-                        <div class="mt-4 mb-6">${isbnTag}</div>
-                        <div class="mt-auto pt-4 border-t space-y-2 font-bold text-sm">
-                            <div class="flex justify-between"><span>Print</span><span>${printPrice}</span></div>
-                            <div class="flex justify-between text-green-600"><span>Digital</span><span>${digitalPrice}</span></div>
-                        </div>
-                    </div>
-                </div>`;
+            // 瀏覽模式：依科目分組，每組一個標題列，方便一次看完某位學生全部課本
+            const groups = {};
+            filtered.forEach(b => { const k = b.subject || 'Other'; (groups[k] = groups[k] || []).push(b); });
+            const keys = Object.keys(groups).sort((a, b) => subjRank(a) - subjRank(b) || a.localeCompare(b));
+            view.innerHTML = keys.map(subj => {
+                const th = subjTheme(subj);
+                const chosen = subjectLevelSel[subj];
+                const badge = (chosen && chosen !== 'All')
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" style="background:${th.ink};color:white">${esc(chosen)}</span>`
+                    : '';
+                const n = groups[subj].length;
+                const gst = priceStats(groups[subj]);
+                const priceTag = gst.sum > 0 ? `<span class="text-[11px] font-black" style="color:${th.ink}">NT$ ${gst.sum.toLocaleString()}</span>` : '';
+                const dot = `<span style="width:11px;height:11px;border-radius:99px;background:${th.ink};display:inline-block;flex:none"></span>`;
+                const head = `<div class="subj-group-head" style="border-bottom-color:${th.line}">${dot}<h2 class="text-base font-black uppercase tracking-wide" style="color:${th.ink}">${esc(subj)}</h2>${badge}<span class="ml-auto flex items-center gap-3"><span class="text-[11px] font-black text-slate-400">${n} book${n === 1 ? '' : 's'}</span>${priceTag}</span></div>`;
+                return head + groups[subj].map(bookCard).join('');
             }).join('');
+        }
+
+        // 單張課本卡片
+        function bookCard(b) {
+            const isSemester = String(b.semester || "").includes('1') || String(b.semester || "").includes('2');
+            const th = subjTheme(b.subject);
+
+            const rawIsbn = b.isbn ? String(b.isbn).trim() : '';
+            const cleanIsbn = rawIsbn.replace(/\D/g, '');
+
+            let finalCoverUrl = 'https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=In-house+Resource';
+            if (b.coverurl && b.coverurl.toLowerCase().startsWith('http')) {
+                finalCoverUrl = b.coverurl;
+            } else if (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-') {
+                finalCoverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-M.jpg`;
+            }
+
+            const isbnTag = (cleanIsbn && rawIsbn !== 'N/A' && rawIsbn !== '-')
+                ? `<a href="https://www.amazon.com/s?k=${cleanIsbn}" target="_blank" class="inline-block bg-blue-50 text-kcis-blue px-2.5 py-1 rounded border border-blue-200 font-mono text-[11px] font-bold hover:bg-[#00A3E0] hover:text-white transition-colors cursor-pointer">ISBN: ${rawIsbn} 🔗</a>`
+                : `<div class="inline-block bg-slate-100 text-slate-400 px-2.5 py-1 rounded border font-mono text-[11px] font-bold">ISBN: ${rawIsbn || 'N/A'}</div>`;
+
+            const rawPrint = String(b.price || '').trim().toUpperCase();
+            const rawDigital = String(b.ebook || '').trim().toUpperCase();
+
+            const printPrice = (rawPrint === '' || rawPrint === 'TBD') ? '待公告' : (rawPrint === '-' ? '-' : `NT$ ${b.price}`);
+            const digitalPrice = (rawDigital === '' || rawDigital === '-') ? '-' : (rawDigital === 'TBD' ? '待公告' : `NT$ ${b.ebook}`);
+
+            return `
+            <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left" style="border-left:5px solid ${th.ink}">
+                <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b text-center">
+                    <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-xl rounded mx-auto">
+                    <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
+                    <div class="absolute top-4 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-400">G${b.grade}</div>
+                    ${b.level ? `<div class="absolute bottom-4 right-4 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" style="background:${th.ink}">${b.level}</div>` : ''}
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <span class="text-[10px] font-black uppercase tracking-widest mb-1 block" style="color:${th.ink}">${b.subject || ''}</span>
+                    <h2 class="font-black text-slate-800 text-lg leading-tight mb-3">${b.title}</h2>
+                    ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight"><p class="text-[14px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-4"></div>'}
+                    <div class="mt-4 mb-6">${isbnTag}</div>
+                    <div class="mt-auto pt-4 border-t space-y-2 font-bold text-sm">
+                        <div class="flex justify-between"><span>Print</span><span>${printPrice}</span></div>
+                        <div class="flex justify-between text-green-600"><span>Digital</span><span>${digitalPrice}</span></div>
+                    </div>
+                </div>
+            </div>`;
         }
 
         function renderSequence() {
