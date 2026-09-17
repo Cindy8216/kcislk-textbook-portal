@@ -112,8 +112,8 @@
 
     <!-- 主網頁內容 -->
     <div class="sticky top-0 z-50 border-b shadow-lg sticky-header">
-        <div class="max-w-7xl mx-auto px-4 py-3">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-2">
+        <div class="max-w-7xl mx-auto px-4 py-2">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2 border-b border-slate-100 pb-1.5 mb-2">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <img src="school-logo.jpg" alt="KCIS Logo" class="h-8 w-auto">
                     <div class="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
@@ -132,17 +132,19 @@
                 </nav>
             </div>
 
-            <div id="filterTextbook" class="flex flex-col gap-2 flex-grow lg:max-w-6xl mx-auto w-full">
-                <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                    <button type="button" id="resetLevels" class="subj-panel-hint underline hover:text-kcis-blue" style="cursor:pointer; background:none; border:none; padding:0;">Reset 重設</button>
-                    <span id="subjLegend" class="flex items-center flex-wrap gap-2 ml-auto"></span>
-                    <button type="button" id="printBtn" class="bg-kcis-blue text-white text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg hover:opacity-90" style="cursor:pointer;">🖨 列印清單 Print</button>
+            <div id="filterTextbook" class="flex flex-col gap-1.5 flex-grow lg:max-w-6xl mx-auto w-full">
+                <div class="flex items-center flex-wrap gap-x-3 gap-y-1.5">
+                    <div id="subjectTabs" class="flex flex-wrap items-center gap-1.5"></div>
+                    <div class="flex items-center gap-3 ml-auto">
+                        <button type="button" id="resetLevels" class="subj-panel-hint underline hover:text-kcis-blue" style="cursor:pointer; background:none; border:none; padding:0;">Reset 重設</button>
+                        <button type="button" id="printBtn" class="bg-kcis-blue text-white text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg hover:opacity-90" style="cursor:pointer;">🖨 列印清單 Print</button>
+                    </div>
+                    <span id="subjLegend" class="hidden"></span>
                 </div>
-                <div id="subjectTabs" class="flex flex-wrap items-center gap-1.5"></div>
                 <div class="flex flex-wrap items-center gap-2">
                     <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-1.5 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed" style="min-width:116px"><option>Loading...</option></select>
                     <div id="subjectLevelPanel" class="flex flex-wrap gap-2 items-center"></div>
-                    <input type="text" id="searchBox" placeholder="Search ISBN / Title" class="border-2 border-slate-200 rounded-lg px-2 py-1.5 focus:border-kcis-blue bg-white font-bold ml-auto" style="width:176px;max-width:100%">
+                    <input type="text" id="searchBox" placeholder="🔎 課程 / 書名 / ISBN" class="border-2 border-slate-200 rounded-lg px-2 py-1.5 focus:border-kcis-blue bg-white font-bold ml-auto" style="width:210px;max-width:100%">
                 </div>
                 <div id="textbookSummary" class="hidden"></div>
             </div>
@@ -639,12 +641,15 @@
         function renderBooks() {
             const grade = document.getElementById('gradeFilter').value;
             const searchRaw = document.getElementById('searchBox').value.trim();
-            const keyword = searchRaw.toLowerCase().replace(/-/g, '');
+            const kw = searchRaw.toLowerCase();               // 書名／課程名用（保留連字號）
+            const keyword = kw.replace(/-/g, '');             // ISBN 用（去連字號）
             const searching = searchRaw.length > 0;
 
             const filtered = allBooks.filter(b => {
                 if (!b.title) return false;
-                if (searching) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
+                if (searching) return String(b.title).toLowerCase().includes(kw)
+                    || String(b.coursename || "").toLowerCase().includes(kw)   // 可用課程名稱找課本
+                    || String(b.isbn || "").replace(/-/g, '').includes(keyword);
                 if (String(b.grade) !== String(grade)) return false;
                 if (currentSubjectTab !== 'All' && b.subject !== currentSubjectTab) return false;   // 科目分頁：只留所選科目
                 const sel = subjectLevelSel[b.subject];
