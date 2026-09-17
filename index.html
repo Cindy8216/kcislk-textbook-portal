@@ -49,6 +49,10 @@
         .subj-card.chosen .subj-card-select { border-color: var(--kcis-blue) !important; color: var(--kcis-blue) !important; }
         .subj-group-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 8px; }
 
+        /* --- 科目分頁 Tab：一次只看一科，不必一直往下滑 --- */
+        .subj-tab { padding: 5px 14px; border-radius: 99px; font-size: 12.5px; font-weight: 800; border: 2px solid #e2e8f0; background: #fff; color: #475569; cursor: pointer; transition: all .15s; white-space: nowrap; line-height: 1.2; }
+        .subj-tab:hover { filter: brightness(0.96); }
+
         /* --- 列印 / 存 PDF 版面：螢幕上藏起來，列印時只印這一塊 --- */
         #printArea { display: none; }
         #printArea .pa-title { font-size: 19px; font-weight: 900; color: #0f172a; }
@@ -134,6 +138,7 @@
                     <span id="subjLegend" class="flex items-center flex-wrap gap-2 ml-auto"></span>
                     <button type="button" id="printBtn" class="bg-kcis-blue text-white text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg hover:opacity-90" style="cursor:pointer;">🖨 列印清單 Print</button>
                 </div>
+                <div id="subjectTabs" class="flex flex-wrap items-center gap-1.5"></div>
                 <div class="flex flex-wrap items-center gap-2">
                     <select id="gradeFilter" class="border-2 border-slate-200 rounded-lg px-2 py-1.5 focus:border-kcis-blue bg-white font-bold opacity-50 cursor-not-allowed" style="min-width:116px"><option>Loading...</option></select>
                     <div id="subjectLevelPanel" class="flex flex-wrap gap-2 items-center"></div>
@@ -166,7 +171,7 @@
     </div>
 
     <main class="max-w-7xl mx-auto p-4 mt-6">
-        <div id="textbookView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
+        <div id="textbookView" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-5"></div>
         <div id="sequenceView" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4" id="sequenceCols"></div>
         </div>
@@ -432,6 +437,7 @@
            subjectLevelSel[科目] = 'All' 或該科某個分級
            ========================================================= */
         let subjectLevelSel = {};
+        let currentSubjectTab = 'All';   // 科目分頁：'All' 或某一科，一次只顯示一科
 
         // 科目顯示順序：英→數→自→社→中→其他→選修
         function subjRank(s) {
@@ -483,7 +489,8 @@
                 Object.keys(subjectLevelSel).forEach(k => subjectLevelSel[k] = 'All');
                 document.querySelectorAll('#subjectLevelPanel .subj-card-select').forEach(sel => sel.value = 'All');
                 document.querySelectorAll('#subjectLevelPanel .subj-card').forEach(p => p.classList.remove('chosen'));
-                renderBooks();
+                currentSubjectTab = 'All';
+                applySubjectTab();
             };
 
             const pb = document.getElementById('printBtn');
@@ -575,7 +582,7 @@
                 const levels = sortLevels([...new Set(allBooks.filter(b => String(b.grade) === String(grade) && b.subject === subj).map(b => b.level).filter(Boolean))]);
                 // 該科沒有分級 → 下方顯示靜態 All，不需下拉
                 if (levels.length === 0) {
-                    return `<div class="subj-card" style="border-color:${th.line}"><span class="subj-card-head" style="background:${th.ink}">${esc(subj)}</span><span class="subj-card-body" style="background:${th.tint}"><span class="subj-card-static">All</span></span></div>`;
+                    return `<div class="subj-card" data-subj="${esc(subj)}" style="border-color:${th.line}"><span class="subj-card-head" style="background:${th.ink}">${esc(subj)}</span><span class="subj-card-body" style="background:${th.tint}"><span class="subj-card-static">All</span></span></div>`;
                 }
                 const opts = `<option value="All">全部 All</option>` + levels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
                 return `<label class="subj-card" data-subj="${esc(subj)}" style="border-color:${th.line}"><span class="subj-card-head" style="background:${th.ink}">${esc(subj)}</span><span class="subj-card-body" style="background:${th.tint}"><select class="subj-card-select" data-subj="${esc(subj)}">${opts}</select></span></label>`;
@@ -590,6 +597,43 @@
                     renderBooks();
                 };
             });
+
+            buildSubjectTabs();   // 科目分頁跟著年級的科目一起建立
+        }
+
+        // 建立「全部 / 各科」分頁列：換年級會重建、預設回到「全部」
+        function buildSubjectTabs() {
+            const grade = document.getElementById('gradeFilter').value;
+            const wrap = document.getElementById('subjectTabs');
+            if (!wrap) return;
+            const subjects = [...new Set(allBooks.filter(b => String(b.grade) === String(grade)).map(b => b.subject).filter(Boolean))]
+                .sort((a, b) => subjRank(a) - subjRank(b) || String(a).localeCompare(String(b)));
+            currentSubjectTab = 'All';
+            const btn = (key, label) => `<button type="button" class="subj-tab" data-tab="${esc(key)}">${esc(label)}</button>`;
+            wrap.innerHTML = btn('All', '全部 All') + subjects.map(s => btn(s, s)).join('');
+            wrap.querySelectorAll('.subj-tab').forEach(b => {
+                b.onclick = () => { currentSubjectTab = b.dataset.tab; applySubjectTab(); };
+            });
+            applySubjectTab();
+        }
+
+        // 套用目前科目分頁：更新按鈕外觀、只留該科的分級卡、重畫書卡
+        function applySubjectTab() {
+            const wrap = document.getElementById('subjectTabs');
+            if (wrap) wrap.querySelectorAll('.subj-tab').forEach(b => {
+                const key = b.dataset.tab;
+                const active = key === currentSubjectTab;
+                const th = key === 'All' ? { ink: '#0f172a', line: '#0f172a' } : subjTheme(key);
+                b.style.background = active ? th.ink : '#fff';
+                b.style.color = active ? '#fff' : (key === 'All' ? '#475569' : th.ink);
+                b.style.borderColor = active ? th.ink : (key === 'All' ? '#e2e8f0' : th.line);
+            });
+            // 選了某一科時，分級面板只保留該科的卡，畫面更乾淨
+            document.querySelectorAll('#subjectLevelPanel .subj-card').forEach(card => {
+                const subj = card.dataset.subj;
+                card.style.display = (currentSubjectTab === 'All' || subj === currentSubjectTab) ? '' : 'none';
+            });
+            renderBooks();
         }
 
         function renderBooks() {
@@ -602,6 +646,7 @@
                 if (!b.title) return false;
                 if (searching) return String(b.title).toLowerCase().includes(keyword) || String(b.isbn || "").replace(/-/g, '').includes(keyword);
                 if (String(b.grade) !== String(grade)) return false;
+                if (currentSubjectTab !== 'All' && b.subject !== currentSubjectTab) return false;   // 科目分頁：只留所選科目
                 const sel = subjectLevelSel[b.subject];
                 if (sel == null || sel === 'All') return true;
                 const lvl = String(b.level || '').trim();
@@ -669,19 +714,19 @@
             const digitalPrice = (rawDigital === '' || rawDigital === '-') ? '-' : (rawDigital === 'TBD' ? '待公告' : `NT$ ${b.ebook}`);
 
             return `
-            <div class="card bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm relative text-left" style="border-left:5px solid ${th.ink}">
-                <div class="h-64 bg-slate-50 flex items-center justify-center p-5 relative border-b text-center">
-                    <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-xl rounded mx-auto">
-                    <div class="absolute top-4 left-4 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
-                    <div class="absolute top-4 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-400">G${b.grade}</div>
-                    ${b.level ? `<div class="absolute bottom-4 right-4 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" style="background:${th.ink}">${b.level}</div>` : ''}
+            <div class="card bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm relative text-left" style="border-left:4px solid ${th.ink}">
+                <div class="h-48 bg-slate-50 flex items-center justify-center p-3 relative border-b text-center">
+                    <img src="${finalCoverUrl}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/F1F5F9/94A3B8?text=Book+Cover+TBD'" class="h-full object-contain drop-shadow-lg rounded mx-auto">
+                    <div class="absolute top-2 left-2 ${isSemester ? 'tag-semester' : 'tag-wholeyear'} px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">${b.semester || 'Whole Year'}</div>
+                    <div class="absolute top-2 right-2 bg-white/80 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-400">G${b.grade}</div>
+                    ${b.level ? `<div class="absolute bottom-2 right-2 text-white px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest" style="background:${th.ink}">${b.level}</div>` : ''}
                 </div>
-                <div class="p-6 flex-grow flex flex-col">
-                    <span class="text-[10px] font-black uppercase tracking-widest mb-1 block" style="color:${th.ink}">${b.subject || ''}</span>
-                    <h2 class="font-black text-slate-800 text-lg leading-tight mb-3">${b.title}</h2>
-                    ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight"><p class="text-[14px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-4"></div>'}
-                    <div class="mt-4 mb-6">${isbnTag}</div>
-                    <div class="mt-auto pt-4 border-t space-y-2 font-bold text-sm">
+                <div class="p-3.5 flex-grow flex flex-col">
+                    <span class="text-[9px] font-black uppercase tracking-widest mb-0.5 block" style="color:${th.ink}">${b.subject || ''}</span>
+                    <h2 class="font-black text-slate-800 text-sm leading-tight mb-1.5">${b.title}</h2>
+                    ${b.coursename && b.coursename !== b.subject ? `<div class="course-highlight" style="margin:4px 0;padding:4px 8px"><p class="text-[12px] text-slate-900 font-bold italic leading-tight">${b.coursename}</p></div>` : '<div class="h-1.5"></div>'}
+                    <div class="mt-1.5 mb-3">${isbnTag}</div>
+                    <div class="mt-auto pt-2.5 border-t space-y-1 font-bold text-[13px]">
                         <div class="flex justify-between"><span>Print</span><span>${printPrice}</span></div>
                         <div class="flex justify-between text-green-600"><span>Digital</span><span>${digitalPrice}</span></div>
                     </div>
